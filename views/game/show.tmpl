@@ -1,0 +1,13 @@
+{{ define "content" }}
+  <h3>Game: {{ .Game.Description }}</h3>
+  <h3>Time: {{ .Game.Time.Format "Mon Jan 2 03:04 PM" }}</h3>
+  <!-- <h3>{{ .Game.Time.Format "Mon Jan 2 03:04 PM" }} - {{ .Game.Description }} </h3> -->
+  {{ range .Responses }}
+    <h4>{{ .Name }}</h4>
+    <ul>
+      {{ range .Players }}
+        <li>{{ . }}</li>
+      {{ end }}
+    </ul>
+  {{ end }}
+{{ end }}

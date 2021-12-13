@@ -1,0 +1,15 @@
+{{ define "title" }}{{ .Player.Name}}'s homepage {{ end }}
+{{ define "content" }}
+  <article>
+    <h2>{{ .Player.Name }}</h2>
+    <img class="card-img-top" alt="{{ .Player.Name }}" src="https://www.gravatar.com/avatar/{{ .Player.Email | gravatarKey }}?s=200" />
+    <h6>Teams</h6>
+    <ul class="list-group list-group-flush">
+      {{ range .Teams }}
+        <li class="list-group-item"><a href="{{ urlFor . "show" }}">{{ .Name }}</a></li>
+      {{ end }}
+    </ul>
+  </article>
+
+  {{ template "upcoming_games.tmpl" .}}
+{{ end }}

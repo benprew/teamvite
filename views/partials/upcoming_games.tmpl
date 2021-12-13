@@ -1,0 +1,37 @@
+<h3>Upcoming Games ({{ len .Games }})</h3>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Desc.</th>
+      <th>Players</th>
+      {{ if .ShowStatus }}
+        <th>Going?</th>
+      {{ end }}
+    </tr>
+  </thead>
+  <tbody>
+    {{ range .Games }}
+      <tr>
+        <td>{{ .Date.Format "Mon Jan 2 3:04PM" }}</td>
+        <td><a href="{{ urlFor . "show" }}">{{ .Description }}</a></td></td>
+        <td>
+          <ul>
+            {{ range .Responses }}
+              <li>{{ .Name }}: {{ len .Players }}</li>
+            {{ end }}
+          </ul>
+        </td>
+        <td>
+          {{ if $.ShowStatus }}
+            <a href="/game/{{ .Id }}/show?status=Y"><button>Yes</button></a>
+            <br/>
+            <a href="/game/{{ .Id }}/show?status=N"><button>No</button></a>
+            <br/>
+            <a href="/game/{{ .Id }}/show?status=M"><button>Maybe</button></a>
+          {{ end }}
+        </td>
+      </tr>
+    {{ end }}
+  </tbody>
+</table>

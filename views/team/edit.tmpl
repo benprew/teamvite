@@ -1,0 +1,42 @@
+{{ define "title" }}{{ .Team.Name }}{{ end }}
+{{ define "content" }}
+  <h3>Team Info</h3>
+  <form method="post">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name" value="{{ .Team.Name }}">
+    <input type="submit" value="Update">
+  </form>
+
+  {{ template "upcoming_games.tmpl" . }}
+
+  <h3>Players ({{ len .Players }})</h3>
+
+  <a href="mailto:{{playerEmails .Players}}"><button>Email the Team</button></a>
+
+  <table>
+    <thead>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Action</th>
+    </thead>
+    <tbody>
+      {{ range .Players }}
+        <tr>
+          <td>{{ .Name }}</td>
+          <td><a href="mailto:{{ .Email }}">{{ .Email }}</a></td>
+          <td>
+            <form action="{{ urlFor $.Team "remove_player" }}" method="post">
+              <input type="submit" name="submit" value="Remove">
+              <input type="hidden" name="player_id" value="{{ .Id }}"></td>
+            </form>
+        </tr>
+      {{ end }}
+      <tr>
+        <td><input type="text" name="name" placeholder="Name" form="add-player"></td>
+        <td><input type="email" name="email" placeholder="Email" form="add-player"></td>
+        <td><input type="submit" name="submit" value="Add" form="add-player"></td>
+      </tr>
+    </tbody>
+  </table>
+  <form id="add-player" action="{{ urlFor .Team "add_player" }}" method="post"></form>
+{{ end }}

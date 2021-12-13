@@ -1,0 +1,9 @@
+{{ define "title" }}Game Reminders{{ end }}
+{{ define "content" }}
+  {{ range $i, $a := .Teams }}
+    {{ $t := index $.Teams $i }}
+    {{ $m := index $.Messages $i }}
+    {{ $t.Name }}.. {{ $m }}
+    <br>
+  {{ end }}
+{{ end }}

@@ -1,0 +1,91 @@
+* Major features
+- [ ] SSL cert for teamvite.com
+- [ ] Adding new games from Portland Indoor
+  Stick with API script or write new script that does direct db inserts?  Doing direct DB inserts means it has to happen on the host, doing it via API means it can be done from anywhere...
+- [ ] Sending email (DKIM, SPF, etc)
+  - [[https://blog.paranoidpenguin.net/2020/02/self-hosting-email-in-2020-joe-nobody-vs-world/][Self-Hosting email in 2020]] (paranoidpenguin.com)
+  - [[https://blog.paranoidpenguin.net/2020/07/self-hosting-security-challenge/][Self-Hosting Security Challenge]] (paranoidpenguin.com)
+  - [[https://www.garron.blog/posts/host-your-email-server.html][Host Your Own Email Server]] (has some good links to other guides)
+  - [[https://medium.com/@stoyanov.veseline/self-hosting-a-mail-server-in-2019-6d29542dadd4][Self-Hosting a Mail Server]]
+  - [[https://arstechnica.com/information-technology/2014/02/how-to-run-your-own-e-mail-server-with-your-own-domain-part-1/][How to run your own email server]] (ArsTechnica)
+  - [[https://www.reddit.com/r/selfhosted/comments/6h88qf/on_selfhosted_mail_servers/][On selfhosted mail servers]] (Reddit)
+  - [[https://www.garron.blog/posts/host-your-email-server.html][Host Your Own Email Server]]
+  - Alternately
+    - [[https://www.mailgun.com/pricing/][Mailgun]] is $.80/month for 1k emails
+- [/] Players
+  - [X] login
+  - [X] logout
+  - [X] show (with upcoming games)
+  - [ ] edit
+    - [ ] change password
+  - [X] Unique index on email
+- [X] Session messages (ex rack-flash)
+  - [X] Style flash message
+  - [[https://www.alexedwards.net/blog/simple-flash-messages-in-golang][Simple Flash Messages in Go]]
+- [X] Teams
+  - [X] Create
+  - [X] show
+  - [X] `/team/:id/calendar.ics`
+    - [[https://datatracker.ietf.org/doc/html/rfc5545][RFC 5545]]
+    - No Go package to build ical calendars
+    - [[https://www.nist.gov/pml/time-and-frequency-division/popular-links/daylight-saving-time-dst][NIST timezone rules]]
+      - begins at 2:00 a.m. on the second Sunday of March (at 2 a.m. the local time time skips ahead to 3 a.m. so there is one less hour in the day)
+      - ends at 2:00 a.m. on the first Sunday of November (at 2 a.m. the local time becomes 1 a.m. and that hour is repeated, so there is an extra hour in the day)
+    - [[https://icalendar.org/rrule-tool.html][RRULE Generator]] (icalendar.org)
+    - [[https://icalendar.org/validator.html][iCalendar Validator]]
+- [X] Games
+  - [X] show
+  - [X] set playing status - on game show
+    - game response POST (actually a GET so it can happen from email)
+  - [X] Create
+  - [X] send_reminders
+    - [X] fix email template rendering
+    - [X] create +session+ token that expires in 1 week, save it in tokens table and add it as a param in the email
+- [X] go http server connecting to sqlite3 db
+  - sqlite backed database - use database/sql
+  - Have to get driver for sqlite3
+  - [[https://astaxie.gitbooks.io/build-web-application-with-golang/content/en/05.3.html][List of SQLite3 drivers]]
+- [X] [[file:initial/import.sh][Script]] to load live db into sqlite db
+- [X] [[https://golangexample.com/yet-effective-http-session-management-and-identification-package/][sessions]]: use sessionup?
+  - Add is_admin flag on user to allow delete/etc on all objects
+- [X] Choose a css framework: (marx)
+  - milligram: https://milligram.io/#getting-started
+  - pico: https://picocss.com/docs/#start https://picocss.com/#examples
+  - marx? https://mblode.github.io/marx/
+  - simple: https://simplecss.org/demo
+  - list of css frameworks: https://github.com/troxler/awesome-css-frameworks
+
+* Post Launch Features
+- [ ] cronjob to cleanup expired tokens in tokens table
+- [ ] Cleanup pages
+  - Buttons are in awkward places sometimes (team manage button)
+  - Buttons are cramped (upcoming games yes/no/maybe buttons)
+  https://mblode.github.io/marx/documentation/
+- [ ] Team Standings
+  - [ ] Email Portland Indoor with demo system to see if they want to use it (for free)
+- [ ] SMS Reminders
+  With the option for choosing how you want reminders (email/sms/both/none)
+- [ ] Write a custom router
+  - [[https://ednsquare.com/story/writing-custom-http-router-in-golang------CBHWYB][Writing a Custom Router in Go]]
+  - [[https://pace.dev/blog/2018/05/09/how-I-write-http-services-after-eight-years.html][How I Write HTTP Services After 8 Years]]
+- [ ] use sqlite3 for session store
+- [ ] Write a custom session handler
+  - [[https://astaxie.gitbooks.io/build-web-application-with-golang/content/en/06.2.html][Building your own session manager]]
+  - [[https://github.com/davseby/sessionup-sqlitestore][SQLite session store]]
+  - [[https://drstearns.github.io/tutorials/gomiddleware/][Middleware Patterns in Go]]
+  - [[https://www.abilityrush.com/writing-middleware-in-golang/][Writing Middleware in Go]]
+- [ ] source code package structure
+  - [[https://medium.com/@benbjohnson/standard-package-layout-7cdbc8391fc1#.ds38va3pp][Standard Package Layout]]
+    1. Root package is for domain types
+    2. Group subpackages by dependency
+    3. Use a shared mock subpackage
+    4. Main package ties together dependencies
+  - [[https://rakyll.org/style-packages/][Style Guidelines for Packages]]
+
+- [ ] Write some tests?
+  - [[https://pace.dev/blog/2018/05/09/how-I-write-http-services-after-eight-years.html][Writing HTTP services in Go]]
+  - [[https://ieftimov.com/post/testing-in-go-testing-http-servers/][Testing HTTP servers in Go]]
+* Cabinet
+redirect example: https://golang.hotexamples.com/examples/net.http/-/Redirect/golang-redirect-function-examples.html
+** Go Learnings
+- [[https://github.com/golang/go/wiki/CodeReviewComments#receiver-type][Common Go Code Review Comments]]

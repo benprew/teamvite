@@ -1,0 +1,21 @@
+{{ define "content" }}
+  <form class="form-inline" method="get" action="/team">
+    <label for="q">Query</label>
+    <input type="text" name="q" value="{{ .Q }}" >
+    <input type="submit" value="Search">
+  </form>
+  <table class="table table-striped">
+    <thead>
+      <th>Name</th>
+      <th>Division</th>
+    </thead>
+    <tbody>
+      {{ range .Teams }}
+        <tr>
+          <td><a href="/team/{{.Id}}/show">{{ .Name }}</a></td>
+          <td>{{ .Division }}</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+{{ end }}
