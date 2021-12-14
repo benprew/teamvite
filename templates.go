@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"html/template"
 	"log"
 	"net/http"
@@ -19,9 +20,12 @@ type LayoutData struct {
 	Page    interface{} // page specific parameters
 }
 
+//go:embed views
+var views embed.FS
+
 // content is the template string
 func LoadContentTemplate(filename string) (*template.Template, error) {
-	return template.Must(templates.Clone()).ParseFiles(filename)
+	return template.Must(templates.Clone()).ParseFS(views, filename)
 }
 
 func (s *server) RenderTemplate(w http.ResponseWriter, r *http.Request, template string, templateParams interface{}) error {
@@ -51,7 +55,7 @@ var templates = defaultTemplates()
 
 func defaultTemplates() *template.Template {
 	tmpl := template.Must(
-		template.New("layout.tmpl").Funcs(fMap).ParseFiles("views/layout.tmpl"))
+		template.New("layout.tmpl").Funcs(fMap).ParseFS(views, "views/layout.tmpl"))
 
-	return template.Must(tmpl.ParseGlob("views/partials/*.tmpl"))
+	return template.Must(tmpl.ParseFS(views, "views/partials/*.tmpl"))
 }

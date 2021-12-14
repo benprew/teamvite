@@ -1,6 +1,8 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
@@ -56,7 +58,12 @@ func (s *server) root() http.Handler {
 	})
 }
 
+//go:embed static
+var static embed.FS
+
 func serveStatic(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	handler := http.FileServer(http.Dir("static/"))
+	staticSub, err := fs.Sub(static, "static")
+	checkErr(err, "subdir of static")
+	handler := http.FileServer(http.FS(staticSub))
 	handler.ServeHTTP(w, r)
 }
