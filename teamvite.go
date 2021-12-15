@@ -16,15 +16,12 @@ import (
 	"github.com/swithek/sessionup/memstore"
 )
 
-const HOSTNAME = "teamvitedev.com"
-
 func main() {
 	store := memstore.New(time.Minute * 5)
 
 	s := server{
-		DB:       initDb(),
-		Mgr:      sessionup.NewManager(store, sessionup.Secure(false)),
-		HostName: "teamvitedev.com",
+		DB:  initDb(),
+		Mgr: sessionup.NewManager(store, sessionup.Secure(false)),
 	}
 	defer s.DB.Close()
 
@@ -91,6 +88,6 @@ func initDb() *sqlx.DB {
 
 func checkErr(err error, msg string) {
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.Fatalln(msg, err)
+		log.Println("[ERROR]: ", msg, err)
 	}
 }
