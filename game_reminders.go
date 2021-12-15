@@ -12,10 +12,11 @@ import (
 )
 
 type Mail struct {
-	Sender  string
-	To      []string
-	Subject string
-	Body    string
+	Sender     string
+	SenderName string
+	To         []string
+	Subject    string
+	Body       string
 }
 
 type SendReminderParams struct {
@@ -24,7 +25,7 @@ type SendReminderParams struct {
 }
 
 func ReminderUrl(g game, token string, status string) string {
-	return fmt.Sprintf("https://%s%s?token=%s&status=%s", HOSTNAME, urlFor(&g, "show"), token, status)
+	return fmt.Sprintf("https://%s%s?token=%s&status=%s", CONFIG.Servername, urlFor(&g, "show"), token, status)
 
 }
 
@@ -50,6 +51,7 @@ func (s *server) SendGameReminders() http.Handler {
 					continue
 				}
 
+				// if this fails we'll just try sending again tomorrow
 				if err := s.emailReminder(p, g); err != nil {
 					checkErr(err, "Sending email")
 				} else {
@@ -95,13 +97,16 @@ func (s *server) emailReminder(p player, g game) error {
 		return err
 	}
 	request := Mail{
-		Sender:  "team@teamvite.com",
-		To:      []string{p.Email},
-		Subject: fmt.Sprintf("Next Game: %s %s", g.Time.Format(""), g.Description),
-		Body:    body,
+		Sender:     "team@teamvite.com",
+		SenderName: "Teamvite",
+		To:         []string{p.Email},
+		Subject:    fmt.Sprintf("Next Game: %s %s", g.Time.Format(""), g.Description),
+		Body:       body,
 	}
-	msg := BuildMessage(request)
-	return smtp.SendMail("localhost:25", nil, request.Sender, request.To, []byte(msg))
+	msg := buildMessage(request)
+	auth := smtp.PlainAuth("", CONFIG.SMTP.Username, CONFIG.SMTP.Password, CONFIG.SMTP.Hostname)
+	addr := fmt.Sprintf("%s:%d", CONFIG.SMTP.Hostname, CONFIG.SMTP.Port)
+	return smtp.SendMail(addr, auth, request.Sender, request.To, []byte(msg))
 
 }
 
@@ -144,9 +149,9 @@ func reminderEmailBody(params ReminderEmailParams) (string, error) {
 	return w.String(), nil
 }
 
-func BuildMessage(mail Mail) string {
+func buildMessage(mail Mail) string {
 	msg := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\r\n"
-	msg += fmt.Sprintf("From: %s\r\n", mail.Sender)
+	msg += fmt.Sprintf("From: %s <%s>\r\n", mail.SenderName, mail.Sender)
 	msg += fmt.Sprintf("To: %s\r\n", strings.Join(mail.To, ";"))
 	msg += fmt.Sprintf("Subject: %s\r\n", mail.Subject)
 	msg += fmt.Sprintf("\r\n%s\r\n", mail.Body)

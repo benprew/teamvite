@@ -11,10 +11,9 @@ import (
 )
 
 type server struct {
-	DB       *sqlx.DB
-	Router   *httprouter.Router
-	Mgr      *sessionup.Manager
-	HostName string // ex teamvite.com or teamvitedev.com
+	DB     *sqlx.DB
+	Router *httprouter.Router
+	Mgr    *sessionup.Manager
 }
 
 func (s *server) routes() http.Handler {
@@ -23,7 +22,7 @@ func (s *server) routes() http.Handler {
 	r.GET("/favicon.ico", serveStatic)
 	r.Handler("GET", "/", s.Mgr.Public(s.root()))
 
-	r.Handler("GET", "/send_game_reminders", s.Mgr.Public(s.SendGameReminders()))
+	r.Handler("GET", "/send_game_reminders", s.Mgr.Auth(s.SendGameReminders()))
 
 	r.Handler("GET", "/user/login", s.Mgr.Public(s.userLogin()))
 	r.Handler("POST", "/user/login", s.Mgr.Public(s.userLoginPost()))
