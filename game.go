@@ -88,9 +88,8 @@ func (s *server) gameShow() http.Handler {
 			s.SetMessage(w, r, msg)
 		}
 		var userGameStatus bool
-		row := s.DB.QueryRow("select true from players_teams pt join games g using (team_id) where player_id = ? and g.id = ?", user.Id, g.Id)
+		s.DB.QueryRow("select true from players_teams pt join games g using (team_id) where player_id = ? and g.id = ?", user.Id, g.Id).Scan(&userGameStatus)
 		log.Printf("PLAYER ON TEAM: %t, %d, %d\n", userGameStatus, user.Id, g.Id)
-		row.Scan(&userGameStatus)
 
 		templateParams := gameShowParams{
 			User:       user,

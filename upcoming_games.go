@@ -102,6 +102,7 @@ join players p on pt.player_id = p.id
 left join players_games pg on pg.game_id = g.id and pg.player_id = p.id
 where g.id = ?`, id)
 	checkErr(err, "game show query")
+	defer rows.Close()
 	for rows.Next() {
 		var status, name string
 		rows.Scan(&status, &name)

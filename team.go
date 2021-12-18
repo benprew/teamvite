@@ -101,8 +101,7 @@ func (s *server) teamShow() http.Handler {
 
 		var isManager bool
 		var status bool
-		row := s.DB.QueryRow("select is_manager, true from players_teams where team_id = ? and player_id = ?", ctx.Team.Id, s.getUser(r).Id)
-		row.Scan(&isManager, &status)
+		s.DB.QueryRow("select is_manager, true from players_teams where team_id = ? and player_id = ?", ctx.Team.Id, s.getUser(r).Id).Scan(&isManager, &status)
 		templateParams := teamShowParams{
 			Players:   ctx.Team.Players(s.DB),
 			Team:      &ctx.Team,
