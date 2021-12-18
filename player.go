@@ -36,10 +36,9 @@ func findByEmail(DB *sqlx.DB, email string) (p player, err error) {
 }
 
 type PlayerShowParams struct {
-	Player     player
-	Teams      []team
-	Games      []UpcomingGame
-	ShowStatus bool
+	Player player
+	Teams  []team
+	Games  []UpcomingGame
 }
 
 func (s *server) playerShow() http.Handler {
@@ -57,10 +56,9 @@ func (s *server) playerShow() http.Handler {
 			return
 		}
 		templateParams := PlayerShowParams{
-			Player:     p,
-			Teams:      p.Teams(s.DB),
-			ShowStatus: p == s.getUser(r),
-			Games:      playerUpcomingGames(s.DB, &p),
+			Player: p,
+			Teams:  p.Teams(s.DB),
+			Games:  playerUpcomingGames(s.DB, &p),
 		}
 		log.Printf("playerShow: rending template: %s\n", ctx.Template)
 		s.RenderTemplate(w, r, ctx.Template, templateParams)
@@ -71,22 +69,3 @@ type playerCtx struct {
 	Player   player
 	Template string
 }
-
-// func buildPlayerContext(DB *sqlx.DB, r *http.Request) (playerCtx, error) {
-// 	routeInfo, err := buildRouteInfo(r)
-// 	if err != nil {
-// 		return playerCtx{}, err
-// 	}
-
-// 	// This handles team/list which doesn't have a team associated with it
-// 	nullT := team{}
-// 	t := loadTeam(DB, routeInfo.Id)
-// 	if routeInfo.Id > 0 && t == nullT {
-// 		return teamCtx{}, fmt.Errorf("no team found for id: %d", routeInfo.Id)
-// 	}
-
-// 	return playerCtx{
-// 		Player:   loadPlayer(DB, routeInfo.Id),
-// 		Template: routeInfo.Template,
-// 	}, nil
-// }

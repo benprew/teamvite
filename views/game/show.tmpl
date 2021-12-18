@@ -1,7 +1,13 @@
 {{ define "content" }}
-  <h3>Game: {{ .Game.Description }}</h3>
-  <h3>Time: {{ .Game.Time.Format "Mon Jan 2 03:04 PM" }}</h3>
-  <!-- <h3>{{ .Game.Time.Format "Mon Jan 2 03:04 PM" }} - {{ .Game.Description }} </h3> -->
+  <h3>{{ .Game.Description }}</h3>
+  <h3>{{ .Game.Time.Format "Mon Jan 2 03:04 PM" }}</h3>
+  {{ if $.ShowStatus }}
+    <a href="/game/{{ .Game.Id }}/show?status=Y"><button>Yes</button></a>
+    &nbsp;
+    <a href="/game/{{ .Game.Id }}/show?status=N"><button>No</button></a>
+    &nbsp;
+    <a href="/game/{{ .Game.Id }}/show?status=M"><button>Maybe</button></a>
+  {{ end }}
   {{ range .Responses }}
     <h4>{{ .Name }}</h4>
     <ul>

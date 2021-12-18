@@ -50,18 +50,16 @@ type team struct {
 }
 
 type teamShowParams struct {
-	Team       *team
-	Players    []player
-	Games      []UpcomingGame
-	ShowStatus bool
-	IsManager  bool
+	Team      *team
+	Players   []player
+	Games     []UpcomingGame
+	IsManager bool
 }
 
 type teamEditParams struct {
-	Team       *team
-	Players    []player
-	Games      []UpcomingGame
-	ShowStatus bool
+	Team    *team
+	Players []player
+	Games   []UpcomingGame
 }
 
 type listTeam struct {
@@ -106,11 +104,10 @@ func (s *server) teamShow() http.Handler {
 		row := s.DB.QueryRow("select is_manager, true from players_teams where team_id = ? and player_id = ?", ctx.Team.Id, s.getUser(r).Id)
 		row.Scan(&isManager, &status)
 		templateParams := teamShowParams{
-			Players:    ctx.Team.Players(s.DB),
-			Team:       &ctx.Team,
-			Games:      teamUpcomingGames(s.DB, ctx.Team),
-			ShowStatus: status,
-			IsManager:  isManager,
+			Players:   ctx.Team.Players(s.DB),
+			Team:      &ctx.Team,
+			Games:     teamUpcomingGames(s.DB, ctx.Team),
+			IsManager: isManager,
 		}
 
 		s.RenderTemplate(w, r, ctx.Template, templateParams)
@@ -127,10 +124,9 @@ func (s *server) teamEdit() http.Handler {
 		}
 
 		templateParams := teamEditParams{
-			Team:       &ctx.Team,
-			Players:    ctx.Team.Players(s.DB),
-			Games:      teamUpcomingGames(s.DB, ctx.Team),
-			ShowStatus: false,
+			Team:    &ctx.Team,
+			Players: ctx.Team.Players(s.DB),
+			Games:   teamUpcomingGames(s.DB, ctx.Team),
 		}
 		s.RenderTemplate(w, r, ctx.Template, templateParams)
 	})
