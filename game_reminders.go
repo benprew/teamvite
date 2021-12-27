@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -34,12 +35,13 @@ func (s *server) SendGameReminders() http.Handler {
 		teams := []team{}
 		s.DB.Select(&teams, "select * from teams")
 
-		messages := make([]string, len(teams))
+		messages := make(map[string]string, len(teams))
 		reminders := []string{}
-		for i, t := range teams {
+		for _, t := range teams {
+			mKey := fmt.Sprintf("%s-%d", t.Name, t.DivisionId)
 			g, ok := t.nextGame(s.DB)
 			if !ok || g.Time.After(time.Now().Add(time.Hour*24*5)) {
-				messages[i] = "No upcoming unreminded games"
+				messages[mKey] = "No upcoming unreminded games"
 				continue
 			}
 			remindersSent := 0
@@ -59,7 +61,7 @@ func (s *server) SendGameReminders() http.Handler {
 					reminders = append(reminders, fmt.Sprintf("(%d, %d)", p.Id, g.Id))
 				}
 			}
-			messages[i] = fmt.Sprintf("Emailed %s to %d players", g.Description, remindersSent)
+			messages[mKey] = fmt.Sprintf("Emailed %s to %d players", g.Description, remindersSent)
 		}
 		if len(reminders) > 0 {
 			fmt.Println(reminders)
@@ -76,12 +78,8 @@ func (s *server) SendGameReminders() http.Handler {
 			_, err := s.DB.Exec(query)
 			checkErr(err, "updating reminders_sent")
 		}
-		params := SendReminderParams{
-			Teams:    teams,
-			Messages: messages,
-		}
-
-		s.RenderTemplate(w, r, "views/send_game_reminders.tmpl", params)
+		w.Header().Set("Content-Type", JSON)
+		json.NewEncoder(w).Encode(messages)
 	})
 }
 

@@ -49,3 +49,16 @@ footer {
     margin-bottom: 20px;
     margin-top: 20px
 }
+
+.img-container {
+    float: left;
+    width: 33.33%;
+    padding: 5px;
+    text-align: center;
+}
+
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}

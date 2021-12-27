@@ -2,51 +2,23 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 )
 
-func (t *team) itemId() int {
-	return t.Id
-}
-
-func (t *team) itemType() string {
-	return "team"
-}
-
-func (t *team) Players(DB *sqlx.DB) []player {
-	var p []player
-	err := DB.Select(&p, "select p.* from players p join players_teams on p.id = player_id where team_id = ? order by p.name", t.Id)
-	checkErr(err, "players for teams")
-	return p
-}
-
-func (t *team) Games(DB *sqlx.DB) (g []game) {
-	err := DB.Select(&g, "select * from games where team_id = ? order by time", t.Id)
-	checkErr(err, "games for team")
-	return
-}
-
-func (t *team) nextGame(DB *sqlx.DB) (g game, ok bool) {
-	err := DB.Get(&g, "select * from games where team_id = ? and time >= strftime('%s', date('now')) order by time limit 1", t.Id)
-	if err == nil {
-		ok = true
-	}
-	checkErr(err, "nextGame")
-	return
-}
-
 type team struct {
-	Id         int    `db:"id,primarykey,autoincrement"`
-	Name       string `db:"name,size:128"`
-	DivisionId int    `db:"division_id"`
+	Id         int    `db:"id,primarykey,autoincrement" json:"id"`
+	Name       string `db:"name,size:128" json:"name"`
+	DivisionId int    `db:"division_id" json:"division_id"`
 }
 
 type teamShowParams struct {
@@ -78,6 +50,36 @@ type teamCtx struct {
 	Template string
 }
 
+func (t *team) itemId() int {
+	return t.Id
+}
+
+func (t *team) itemType() string {
+	return "team"
+}
+
+func (t *team) Players(DB *sqlx.DB) []player {
+	var p []player
+	err := DB.Select(&p, "select p.* from players p join players_teams on p.id = player_id where team_id = ? order by p.name", t.Id)
+	checkErr(err, "players for teams")
+	return p
+}
+
+func (t *team) Games(DB *sqlx.DB) (g []game) {
+	err := DB.Select(&g, "select * from games where team_id = ? order by time", t.Id)
+	checkErr(err, "games for team")
+	return
+}
+
+func (t *team) nextGame(DB *sqlx.DB) (g game, ok bool) {
+	err := DB.Get(&g, "select * from games where team_id = ? and time >= strftime('%s', date('now')) order by time limit 1", t.Id)
+	if err == nil {
+		ok = true
+	}
+	checkErr(err, "nextGame")
+	return
+}
+
 func buildTeamContext(DB *sqlx.DB, r *http.Request) (teamCtx, error) {
 	ctx, err := BuildContext(DB, r)
 	if err != nil {
@@ -99,14 +101,11 @@ func (s *server) teamShow() http.Handler {
 			return
 		}
 
-		var isManager bool
-		var status bool
-		s.DB.QueryRow("select is_manager, true from players_teams where team_id = ? and player_id = ?", ctx.Team.Id, s.getUser(r).Id).Scan(&isManager, &status)
 		templateParams := teamShowParams{
 			Players:   ctx.Team.Players(s.DB),
 			Team:      &ctx.Team,
 			Games:     teamUpcomingGames(s.DB, ctx.Team),
-			IsManager: isManager,
+			IsManager: s.GetUser(r).IsManager(s.DB, ctx.Team),
 		}
 
 		s.RenderTemplate(w, r, ctx.Template, templateParams)
@@ -120,6 +119,10 @@ func (s *server) teamEdit() http.Handler {
 			log.Printf("[ERROR] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
+		}
+
+		if !s.GetUser(r).IsManager(s.DB, ctx.Team) {
+			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 		}
 
 		templateParams := teamEditParams{
@@ -266,38 +269,61 @@ func (s *server) teamCalendar() http.Handler {
 			CreateTime: time.Now(),
 		}
 
-		t := template.Must(template.ParseFiles("views/team/calendar.ics.tmpl"))
+		t := template.Must(LoadContentTemplate("views/team/calendar.ics.tmpl"))
 		w.Header().Set("Content-Type", "text/calendar;charset=utf-8")
-		t.Execute(w, params)
+		t.ExecuteTemplate(w, "calendar.ics.tmpl", params)
 	})
 }
 
+const JSON = "application/json"
+
 func (s *server) teamCreate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
-			checkErr(err, "parsing team create form")
-			w.WriteHeader(http.StatusBadRequest)
-			return
+		contentType := r.Header.Get("Content-type")
+		var t team
+		switch contentType {
+		case JSON:
+			if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			t, err := s.createTeam(t)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				checkErr(err, "creating team: ")
+				return
+			}
+			w.Header().Set("Content-Type", JSON)
+			json.NewEncoder(w).Encode(t)
+		default:
+			if err := r.ParseForm(); err != nil {
+				checkErr(err, "error parsing params from request")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			d, _ := strconv.Atoi(r.PostForm.Get("division_id"))
+			t = team{
+				Name:       r.PostForm.Get("name"),
+				DivisionId: d,
+			}
+			t, err := s.createTeam(t)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				checkErr(err, "creating team: ")
+				return
+			}
+			http.Redirect(w, r, urlFor(&t, "show"), http.StatusFound)
 		}
-		name := r.PostForm.Get("name")
-		divisionId := r.PostForm.Get("division_id")
-
-		_, err := s.DB.Exec("insert into teams (name, division_id) values (?, ?)", name, divisionId)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			checkErr(err, "creating team: ")
-			return
-		}
-		t := team{}
-		err = s.DB.Get(&t, "select * from teams where name = ? and division_id = ?", name, divisionId)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			checkErr(err, "creating team: ")
-			return
-		}
-
-		http.Redirect(w, r, urlFor(&t, "show"), http.StatusFound)
 	})
+}
+
+func (s *server) createTeam(t team) (team, error) {
+	_, err := s.DB.Exec("insert into teams (name, division_id) values (?, ?)", t.Name, t.DivisionId)
+	if err != nil {
+		return t, err
+	}
+	err = s.DB.Get(&t, "select * from teams where name = ? and division_id = ?", t.Name, t.DivisionId)
+	return t, err
 }
 
 func playerEmails(players []player) string {

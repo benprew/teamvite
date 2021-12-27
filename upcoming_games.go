@@ -84,32 +84,41 @@ func responsesForGames(DB *sqlx.DB, games []UpcomingGame) {
 	}
 }
 
-func responsesForGame(DB *sqlx.DB, id int) (r []GameResponse) {
-	responses := make(map[string][]string)
+func responsesForGame(DB *sqlx.DB, id int) []GameResponse {
+	var r [4]GameResponse
+	respMap := map[string]int{
+		"Yes":      0,
+		"No":       1,
+		"Maybe":    2,
+		"No Reply": 3,
+	}
+
+	for k, v := range respMap {
+		r[v].Name = k
+	}
+
 	rows, err := DB.Queryx(`
 select
   case
-    when pg.status = '?' or pg.status is null then 'No Reply'
     when pg.status = 'N' then 'No'
     when pg.status = 'Y' then 'Yes'
     when pg.status = 'M' then 'Maybe'
-    else pg.status
+    else 'No Reply'
   end as status,
   name
 from games g
 join players_teams pt using(team_id)
 join players p on pt.player_id = p.id
 left join players_games pg on pg.game_id = g.id and pg.player_id = p.id
-where g.id = ?`, id)
+where g.id = ?
+order by status desc, name`, id)
 	checkErr(err, "game show query")
 	defer rows.Close()
 	for rows.Next() {
 		var status, name string
 		rows.Scan(&status, &name)
-		responses[status] = append(responses[status], name)
+		idx := respMap[status]
+		r[idx].Players = append(r[idx].Players, name)
 	}
-	for response, players := range responses {
-		r = append(r, GameResponse{response, players})
-	}
-	return r
+	return r[:]
 }

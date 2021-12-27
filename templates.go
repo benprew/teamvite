@@ -39,7 +39,7 @@ func (s *server) RenderTemplate(w http.ResponseWriter, r *http.Request, template
 
 	params := LayoutData{
 		Message: msg,
-		User:    s.getUser(r),
+		User:    s.GetUser(r),
 		Page:    templateParams,
 	}
 

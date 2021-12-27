@@ -1,19 +1,26 @@
 {{ define "content" }}
   <h3>{{ .Game.Description }}</h3>
-  <h3>{{ .Game.Time.Format "Mon Jan 2 03:04 PM" }}</h3>
-  {{ if $.ShowStatus }}
-    <a href="/game/{{ .Game.Id }}/show?status=Y"><button>Yes</button></a>
-    &nbsp;
-    <a href="/game/{{ .Game.Id }}/show?status=N"><button>No</button></a>
-    &nbsp;
-    <a href="/game/{{ .Game.Id }}/show?status=M"><button>Maybe</button></a>
-  {{ end }}
+  <h4>{{ .Game.Time.Format "Mon Jan 2 03:04 PM" }}</h4>
   {{ range .Responses }}
-    <h4>{{ .Name }}</h4>
+    <h5>{{ .Name }} ({{ len .Players }})</h5>
     <ul>
       {{ range .Players }}
         <li>{{ . }}</li>
       {{ end }}
     </ul>
+  {{ end }}
+  {{ if $.ShowStatus }}
+    <hr>
+    <div class="clearfix">
+      <div class="img-container">
+        <a href="/game/{{ .Game.Id }}/show?status=Y"><button>&nbsp;Yes&nbsp;</button></a>
+      </div>
+      <div class="img-container">
+        <a href="/game/{{ .Game.Id }}/show?status=N"><button>&nbsp;&nbsp;No&nbsp;&nbsp;</button></a>
+      </div>
+      <div class="img-container">
+        <a href="/game/{{ .Game.Id }}/show?status=M"><button>Maybe</button></a>
+      </div>
+    </div>
   {{ end }}
 {{ end }}

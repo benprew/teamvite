@@ -2,7 +2,7 @@
   "servername": "teamvitedev.com",
   "smtp": {
     "hostname": "localhost",
-    "port": 25,
+    "port": 8025,
     "username": "",
     "password": ""
   }

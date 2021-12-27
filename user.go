@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -68,4 +69,13 @@ func (s *server) userLoginPost() http.Handler {
 		checkErr(err, "session manager init")
 		http.Redirect(w, r, urlFor(&p, "show"), http.StatusFound)
 	})
+}
+
+func (u player) IsManager(DB *sqlx.DB, t team) (isMgr bool) {
+	if u.Id == 0 {
+		return false
+	}
+	err := DB.Get(&isMgr, "select is_manager from players_teams where player_id = ? and team_id = ?", u.Id, t.Id)
+	checkErr(err, "IsManager")
+	return
 }

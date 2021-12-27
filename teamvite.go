@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	// TODO: Figure out how to set metadata in sqlite3 (there's no public interface for it currently)
+	// sqlitestore "github.com/hyzual/sessionup-sqlitestore"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/swithek/sessionup"
@@ -17,18 +19,27 @@ import (
 )
 
 func main() {
-	store := memstore.New(time.Minute * 5)
+	store := memstore.New(time.Hour * 24)
+
+	db, err := sql.Open("sqlite3", "file:teamvite.db?_foreign_keys=1")
+	checkErr(err, "unable to open sqlite3 db teamvite.db")
+	defer db.Close()
+	// store, err := sqlitestore.New(db, "sessions", time.Hour*24)
+	// if err != nil {
+	// 	log.Fatal("Unable to init sqlite session store", err)
+	// }
+
+	sDb := sqlx.NewDb(db, "sqlite3")
 
 	s := server{
-		DB:  initDb(),
+		DB:  sDb,
 		Mgr: sessionup.NewManager(store, sessionup.Secure(false)),
 	}
-	defer s.DB.Close()
 
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", s.routes()))
 }
 
-func (s *server) getUser(req *http.Request) (user player) {
+func (s *server) GetUser(req *http.Request) (user player) {
 	t, ok := req.URL.Query()["token"]
 	if ok && t[0] != "" {
 		log.Printf("Finding player with token: %s\n", t)
@@ -47,7 +58,7 @@ func (s *server) getUser(req *http.Request) (user player) {
 		err := s.DB.Get(&user, "select * from players where id = ?", userId)
 		checkErr(err, fmt.Sprintf("Getting user from session: %s", userId))
 	}
-	return user
+	return
 }
 
 func (s *server) getSession(req *http.Request) (sessionup.Session, bool) {
@@ -78,12 +89,6 @@ func urlFor(i Item, action string) string {
 func gravatarKey(email string) string {
 	sum := md5.Sum([]byte(email))
 	return hex.EncodeToString(sum[:])
-}
-
-func initDb() *sqlx.DB {
-	db, err := sqlx.Connect("sqlite3", "file:teamvite.db?_foreign_keys=1")
-	checkErr(err, "sql.Open failed")
-	return db
 }
 
 func checkErr(err error, msg string) {

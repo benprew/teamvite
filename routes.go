@@ -20,9 +20,10 @@ func (s *server) routes() http.Handler {
 	r := httprouter.New()
 	r.GET("/css/*filepath", serveStatic)
 	r.GET("/favicon.ico", serveStatic)
+	r.GET("/robots.txt", serveStatic)
 	r.Handler("GET", "/", s.Mgr.Public(s.root()))
 
-	r.Handler("GET", "/send_game_reminders", s.Mgr.Auth(s.SendGameReminders()))
+	r.Handler("GET", "/send_game_reminders", s.Mgr.Public(s.SendGameReminders()))
 
 	r.Handler("GET", "/user/login", s.Mgr.Public(s.userLogin()))
 	r.Handler("POST", "/user/login", s.Mgr.Public(s.userLoginPost()))
@@ -36,7 +37,8 @@ func (s *server) routes() http.Handler {
 
 	r.Handler("GET", "/team", s.Mgr.Public(s.teamList()))
 	r.Handler("GET", "/team/:id/show", s.Mgr.Public(s.teamShow()))
-	r.Handler("GET", "/team/:id/edit", s.Mgr.Auth(s.teamEdit()))
+	r.Handler("GET", "/team/:id/edit", s.Mgr.Public(s.teamEdit())) // auth is handled in teamEdit
+	// r.Handler("PATCH", "/team/:id/edit", s.Mgr.Auth(s.teamUpdate()))
 	r.Handler("POST", "/team/:id/add_player", s.Mgr.Auth(s.teamAddPlayer()))
 	r.Handler("POST", "/team/:id/remove_player", s.Mgr.Auth(s.teamRemovePlayer()))
 	r.Handler("GET", "/team/:id/calendar.ics", s.Mgr.Public(s.teamCalendar()))
@@ -44,16 +46,25 @@ func (s *server) routes() http.Handler {
 
 	// Handles game responses.  Done as a GET so you can follow links in email
 	r.Handler("GET", "/game/:id/show", s.Mgr.Public(s.gameShow()))
-	// r.Handler("POST", "/game", gameCreate)
+	r.Handler("POST", "/game", s.Mgr.Public(s.GameCreate()))
 
 	s.Router = r
 
 	return r
 }
 
+type appHandler func(http.ResponseWriter, *http.Request) error
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := fn(w, r); err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+}
+
 func (s *server) root() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/user/login", http.StatusFound)
+
+		http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 	})
 }
 

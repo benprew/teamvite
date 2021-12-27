@@ -1,11 +1,10 @@
 {{ define "title" }}{{ .Team.Name }}{{ end }}
 {{ define "content" }}
   <h3>Team Info</h3>
-  <form method="post">
-    <label for="name">Name:</label>
-    <input type="text" id="name" name="name" value="{{ .Team.Name }}">
-    <input type="submit" value="Update">
-  </form>
+  <ul>
+    <li><strong>Name:</strong>{{ .Team.Name }}</li>
+    <li><strong>Division:</strong>{{ .Team.DivisionId}}</li>
+  </ul>
 
   {{ template "upcoming_games.tmpl" . }}
 

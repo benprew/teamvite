@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -13,8 +14,8 @@ import (
 
 type game struct {
 	Id          int        `db:"id,primarykey,autoincrement"`
-	TeamId      int        `db:"team_id"`
-	SeasonId    int        `db:"season_id"`
+	TeamId      int        `db:"team_id" json:"team_id"`
+	SeasonId    int        `db:"season_id" json:"season_id"`
 	Time        *time.Time `db:"time"`
 	Description string     `db:"description"`
 }
@@ -60,6 +61,37 @@ func buildGameContext(DB *sqlx.DB, r *http.Request) (gameCtx, error) {
 	}, nil
 }
 
+// create assumes a JSON request
+func (s *server) GameCreate() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType := r.Header.Get("Content-type")
+		log.Println(contentType)
+		if contentType != JSON {
+			log.Printf("[WARN] Content type: %s not supported", contentType)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", JSON)
+		var g game
+		if err := json.NewDecoder(r.Body).Decode(&g); err != nil {
+			checkErr(err, "JSON parsing game")
+			json.NewEncoder(w).Encode(fmt.Sprint(err))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		g, err := s.createGame(g)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(fmt.Sprint(err))
+			checkErr(err, "creating game: ")
+			return
+		}
+		w.Header().Set("Content-Type", JSON)
+		json.NewEncoder(w).Encode(g)
+	})
+}
+
 func (s *server) gameShow() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := buildGameContext(s.DB, r)
@@ -70,7 +102,7 @@ func (s *server) gameShow() http.Handler {
 		}
 
 		g := ctx.Game
-		user := s.getUser(r)
+		user := s.GetUser(r)
 
 		status, ok := r.URL.Query()["status"]
 		if ok {
@@ -92,7 +124,6 @@ func (s *server) gameShow() http.Handler {
 		log.Printf("PLAYER ON TEAM: %t, %d, %d\n", userGameStatus, user.Id, g.Id)
 
 		templateParams := gameShowParams{
-			User:       user,
 			Game:       g,
 			Responses:  responsesForGame(s.DB, g.Id),
 			ShowStatus: userGameStatus,
@@ -149,4 +180,26 @@ func getOrCreateStatus(DB *sqlx.DB, playerId int, gameId int) (pg playerGame) {
 	checkErr(err, "game getOrCreateStatus")
 
 	return
+}
+
+func (s *server) createGame(g game) (game, error) {
+	if g.Time == nil {
+		return g, fmt.Errorf("game time is required")
+	}
+	if g.TeamId == 0 {
+		return g, fmt.Errorf("team_id is required")
+	}
+	if g.SeasonId == 0 {
+		return g, fmt.Errorf("season_id is required")
+	}
+	if g.Time.Before(time.Now().Add(-time.Hour * 24 * 30)) {
+		return g, fmt.Errorf("game time too far in the past: %v", g.Time)
+	}
+	_, err := s.DB.Exec("insert into games (team_id, season_id, time, description) values (?, ?, ?, ?)", g.TeamId, g.SeasonId, g.Time.Unix(), g.Description)
+	if err != nil {
+		return g, err
+	}
+	err = s.DB.Get(&g, "select * from games where team_id = ? and time = ?", g.TeamId, g.Time.Unix())
+	return g, err
+
 }
