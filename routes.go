@@ -48,6 +48,10 @@ func (s *server) routes() http.Handler {
 	r.Handler("GET", "/game/:id/show", s.Mgr.Public(s.gameShow()))
 	r.Handler("POST", "/game", s.Mgr.Public(s.GameCreate()))
 
+	// JSON APIs
+	r.Handler("GET", "/season", s.Mgr.Public(s.SeasonList()))
+	r.Handler("GET", "/division", s.Mgr.Public(s.DivisionList()))
+
 	s.Router = r
 
 	return r

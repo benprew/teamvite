@@ -16,7 +16,7 @@ create table teams (
 
 create table divisions (
        id integer not null primary key autoincrement,
-       name varchar(64) not null default ''
+       name varchar(64) not null unique
 );
 
 create table games (
@@ -51,7 +51,7 @@ create table players_games (
 
 create table seasons (
        id integer primary key autoincrement,
-       name string
+       name string not null unique
 );
 
 -- tokens is used for generating temporary tokens when sending email reminders

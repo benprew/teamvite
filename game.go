@@ -62,6 +62,12 @@ func buildGameContext(DB *sqlx.DB, r *http.Request) (gameCtx, error) {
 }
 
 // create assumes a JSON request
+// curl -i -X POST --silent \
+//   http://teamvitedev.com:8080/game \
+//   -H 'Content-Type: application/json' \
+//   --data '{"team_id":4369,"time": "2021-12-01T13:00:00Z", "season_id": 1}'
+
+// -- data '{"team": "foobar", "division": "m2a", "season": "2022-Winter", "time":"2021-12-01T13:00:00Z", "description": "foobar vs fubar"}'
 func (s *server) GameCreate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get("Content-type")

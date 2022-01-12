@@ -35,9 +35,9 @@ type teamEditParams struct {
 }
 
 type listTeam struct {
-	Id       int
-	Name     string
-	Division string
+	Id       int    `json:"id"`
+	Name     string `json:"name"`
+	Division string `json:"division"`
 }
 
 type teamListParams struct {
@@ -146,10 +146,11 @@ func (s *server) teamList() http.Handler {
 		}
 
 		t := []listTeam{}
+		// TODO: Add filtering by division name (for creating games)
 		nameWhere := ""
 		nameQuery := ""
 
-		q, ok := r.URL.Query()["q"]
+		q, ok := r.URL.Query()["name"]
 		if ok && q[0] != "" {
 			nameWhere = "where t.name like ?"
 			nameQuery = q[0]
@@ -164,11 +165,17 @@ func (s *server) teamList() http.Handler {
 		err = s.DB.Select(&t, query, fmt.Sprintf("%%%s%%", nameQuery))
 		checkErr(err, "team list")
 
-		templateParams := teamListParams{
-			Q:     nameQuery,
-			Teams: t,
+		switch r.Header.Get("Content-type") {
+		case JSON:
+			w.Header().Set("Content-Type", JSON)
+			json.NewEncoder(w).Encode(t)
+		default:
+			templateParams := teamListParams{
+				Q:     nameQuery,
+				Teams: t,
+			}
+			s.RenderTemplate(w, r, ctx.Template, templateParams)
 		}
-		s.RenderTemplate(w, r, ctx.Template, templateParams)
 	})
 }
 
@@ -277,6 +284,10 @@ func (s *server) teamCalendar() http.Handler {
 
 const JSON = "application/json"
 
+// curl -i -X POST --silent \
+// http://teamvitedev.com:8080/team \
+// -H 'Content-Type: application/json' \
+// --data '{"name":"Test Team","division_id":1}'
 func (s *server) teamCreate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get("Content-type")
