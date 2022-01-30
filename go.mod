@@ -3,6 +3,7 @@ module teamvite
 go 1.17
 
 require (
+	github.com/hyzual/sessionup-sqlitestore v1.1.1
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.8

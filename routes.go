@@ -11,9 +11,10 @@ import (
 )
 
 type server struct {
-	DB     *sqlx.DB
-	Router *httprouter.Router
-	Mgr    *sessionup.Manager
+	DB       *sqlx.DB
+	Router   *httprouter.Router
+	Mgr      *sessionup.Manager
+	MsgStore MessageStore
 }
 
 func (s *server) routes() http.Handler {
@@ -30,9 +31,9 @@ func (s *server) routes() http.Handler {
 	r.Handler("GET", "/user/logout", s.Mgr.Auth(s.userLogout()))
 
 	r.Handler("GET", "/player/:id/show", s.Mgr.Public(s.playerShow()))
-	// r.Handler("GET", "/player/:id/edit", s.Mgr.Auth(s.playerEdit()))
-	// r.Handler("POST", "/player/:id/edit", playerUpdate)
-	// r.Handler("PATCH", "/player/:id/edit", playerUpdate)
+	r.Handler("GET", "/player/:id/edit", s.Mgr.Auth(s.PlayerEdit()))
+	r.Handler("POST", "/player/:id/edit", s.Mgr.Auth(s.PlayerUpdate()))
+	r.Handler("PATCH", "/player/:id/edit", s.Mgr.Auth(s.PlayerUpdate()))
 	// r.Handler("GET", "/player", playerList)
 
 	r.Handler("GET", "/team", s.Mgr.Public(s.teamList()))
@@ -67,8 +68,12 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) root() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+		u := s.GetUser(r)
+		if u.Id == 0 {
+			http.Redirect(w, r, "/user/login", http.StatusFound)
+		} else {
+			http.Redirect(w, r, urlFor(&u, "show"), http.StatusFound)
+		}
 	})
 }
 

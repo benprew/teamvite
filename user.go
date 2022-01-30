@@ -36,27 +36,28 @@ func (s *server) userLoginPost() http.Handler {
 		p, err := findByEmail(s.DB, email)
 		if err != nil {
 			msg := fmt.Sprintf("No user found for email: %s", email)
-			s.SetMessage(w, r, msg)
+			s.SetMessage(s.GetUser(r), msg)
 			log.Println(msg)
-			http.Redirect(w, r, "/user/login", http.StatusFound)
+			// render the template here, after setting the error message
+			s.RenderTemplate(w, r, "views/user/login.tmpl", nil)
 			return
 		}
 		hash := []byte(p.Password.String)
 		if p.Password.String == "" || !p.Password.Valid {
 			msg := "user must reset password"
-			s.SetMessage(w, r, msg)
+			s.SetMessage(s.GetUser(r), msg)
 			log.Println(msg)
-			http.Redirect(w, r, "/user/login", http.StatusFound)
+			s.RenderTemplate(w, r, "views/user/login.tmpl", nil)
 			return
 		}
 
 		// Comparing the password with the hash
 		err = bcrypt.CompareHashAndPassword(hash, password)
 		if err != nil {
-			msg := fmt.Sprintf("incorrect password: %s", err)
-			s.SetMessage(w, r, msg)
-			log.Println(msg)
-			http.Redirect(w, r, "/user/login", http.StatusFound)
+			msg := "incorrect password"
+			s.SetMessage(s.GetUser(r), msg)
+			log.Println(msg, err)
+			s.RenderTemplate(w, r, "views/user/login.tmpl", nil)
 			return
 		}
 		log.Println("DEBUG: logging in as user:", p)

@@ -1,23 +1,14 @@
 {{ define "title" }}{{ .Team.Name }}{{ end }}
 {{ define "content" }}
-  <h3>Team Info</h3>
-  <ul>
-    <li><strong>Name:</strong>{{ .Team.Name }}</li>
-    <li><strong>Division:</strong>{{ .Team.DivisionId}}</li>
-  </ul>
-
-  {{ template "upcoming_games.tmpl" . }}
-
-  <h3>Players ({{ len .Players }})</h3>
-
-  <a href="mailto:{{playerEmails .Players}}"><button>Email the Team</button></a>
+  <h3>{{ .Team.Name }}</h3>
+  <strong>DIVISION:</strong> {{ .Team.DivisionId}}
+  <hr>
+  <h5>
+    PLAYERS - {{ len .Players }}
+    <a href="mailto:{{playerEmails .Players}}"><button>Email the Team</button></a>
+  </h5>
 
   <table>
-    <thead>
-      <th>Name</th>
-      <th>Email</th>
-      <th>Action</th>
-    </thead>
     <tbody>
       {{ range .Players }}
         <tr>
@@ -38,4 +29,5 @@
     </tbody>
   </table>
   <form id="add-player" action="{{ urlFor .Team "add_player" }}" method="post"></form>
+  {{ template "upcoming_games.tmpl" . }}
 {{ end }}

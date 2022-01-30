@@ -1,11 +1,5 @@
-<h3>Upcoming Games ({{ len .Games }})</h3>
+<h5>UPCOMING GAMES - {{ len .Games }}</h5>
 <table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Date</th>
-      <th>Desc.</th>
-    </tr>
-  </thead>
   <tbody>
     {{ range .Games }}
       <tr>

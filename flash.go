@@ -1,30 +1,37 @@
 package main
 
 import (
-	"net/http"
+	"sync"
 )
 
-// ResponseWriter is needed to set a session cookie
-func (s *server) SetMessage(w http.ResponseWriter, req *http.Request, msg string) error {
-	ss, ok := s.getSession(req)
-	if ok {
-		ss.Meta["message"] = msg
-	} else {
-		return s.Mgr.Init(
-			w,
-			req,
-			"0",
-			func(m map[string]string) { m["message"] = msg })
-	}
-	return nil
+// TODO: fix race condition where you have multiple non-logged-in users setting
+// messages.
+
+type MessageStore struct {
+	Mut      sync.Mutex
+	Messages map[int]string
 }
 
-func (s *server) GetMessage(req *http.Request) (msg string) {
-	ss, ok := s.getSession(req)
-	if ok {
-		msg = ss.Meta["message"]
-		// delete after use
-		ss.Meta["message"] = ""
+func NewMessageStore() MessageStore {
+	return MessageStore{
+		Messages: make(map[int]string),
 	}
+}
+
+// ResponseWriter is needed to set a session cookie
+func (s *server) SetMessage(u player, msg string) {
+	s.MsgStore.Mut.Lock()
+	defer s.MsgStore.Mut.Unlock()
+
+	s.MsgStore.Messages[u.Id] = msg
+}
+
+func (s *server) GetMessage(u player) (msg string) {
+	s.MsgStore.Mut.Lock()
+	defer s.MsgStore.Mut.Unlock()
+
+	msg = s.MsgStore.Messages[u.Id]
+	// delete after use
+	s.MsgStore.Messages[u.Id] = ""
 	return
 }

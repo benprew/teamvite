@@ -1,0 +1,35 @@
+{{ define "title" }}{{ .Player.Name}}'s homepage {{ end }}
+{{ define "content" }}
+  <form method="POST">
+    <label for="name">Name:</label>
+    <input type="text" name="name" value="{{ .Player.Name }}">
+    <label for="email">Email:</label>
+    <input type="email" name="email" value="{{ .Player.Email }}">
+    <label for="phone">Phone:</label>
+    <input type="tel" name="phone" value="{{ Telify .Player.Phone }}">
+    <label for="password">Change Password:</label>
+    <input type="password" name="password" value="">
+    <h3>Team Reminders</h3>
+    <table>
+      <thead>
+        <th>Name</th>
+        <th>Email</th>
+        <th>SMS</th>
+      </thead>
+      <tbody>
+        {{ range .Teams }}
+          <tr>
+            <td>{{ .Name }}</td>
+            <td>
+              <input type="checkbox" name="{{ ReminderId .Id }}" value="email" {{ if .RemindEmail }} checked {{ end }}>
+            </td>
+            <td>
+              <input type="checkbox" name="{{ ReminderId .Id }}" value="sms" {{ if .RemindSMS }} checked {{ end }}>
+            </td>
+          </tr>
+        {{ end }}
+      </tbody>
+    </table>
+    <input type="submit" value="Update">
+  </form>
+{{ end }}

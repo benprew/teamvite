@@ -3,7 +3,7 @@ create table players (
        name varchar(64) not null default '',
        email varchar(128) not null unique,
        password varchar(1024) not null default '',
-       phone_number int8
+       phone int8 not null default -1
 );
 
 create table teams (
@@ -33,7 +33,9 @@ create table games (
 create table players_teams (
        player_id integer not null,
        team_id integer not null,
-       is_manager bool not null default false,
+       is_manager boolean not null default false,
+       remind_email boolean not null default true,
+       remind_sms boolean not null default false,
        PRIMARY KEY (team_id, player_id),
        FOREIGN KEY (team_id) REFERENCES teams(id),
        FOREIGN KEY (player_id) REFERENCES players(id)

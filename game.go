@@ -73,7 +73,7 @@ func (s *server) GameCreate() http.Handler {
 		contentType := r.Header.Get("Content-type")
 		log.Println(contentType)
 		if contentType != JSON {
-			log.Printf("[WARN] Content type: %s not supported", contentType)
+			log.Printf("[WARN] Content type: %s not supported\n", contentType)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -86,6 +86,7 @@ func (s *server) GameCreate() http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		log.Printf("loaded game: %v\n", g)
 		g, err := s.createGame(g)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -123,7 +124,7 @@ func (s *server) gameShow() http.Handler {
 
 			}
 			setStatus(s.DB, status[0], user.Id, g.Id)
-			s.SetMessage(w, r, msg)
+			s.SetMessage(user, msg)
 		}
 		var userGameStatus bool
 		s.DB.QueryRow("select true from players_teams pt join games g using (team_id) where player_id = ? and g.id = ?", user.Id, g.Id).Scan(&userGameStatus)

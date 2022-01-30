@@ -1,15 +1,37 @@
 {{ define "title" }}{{ .Player.Name}}'s homepage {{ end }}
 {{ define "content" }}
-  <article>
-    <h2>{{ .Player.Name }}</h2>
-    <img class="card-img-top" alt="{{ .Player.Name }}" src="https://www.gravatar.com/avatar/{{ .Player.Email | gravatarKey }}?s=200" />
-    <h6>Teams</h6>
-    <ul class="list-group list-group-flush">
-      {{ range .Teams }}
-        <li class="list-group-item"><a href="{{ urlFor . "show" }}">{{ .Name }}</a></li>
-      {{ end }}
-    </ul>
-  </article>
+  <h3><img style="margin-right: 5px; vertical-align: middle" alt="{{ .Player.Name }}" src="https://www.gravatar.com/avatar/{{ .Player.Email | gravatarKey }}?s=480" width="36" height="36" />{{ .Player.Name }}
+    {{ if .IsUser }}
+      <a href="{{ urlFor .Player "edit" }}"><button>Edit</button></a>
+    {{ end }}
+  </h3>
 
+  {{ if .IsUser }}
+    <ul>
+      <li>Email: {{ .Player.Email }}</li>
+      <li>Phone: {{ Telify .Player.Phone }}</li>
+    </ul>
+  {{ end}}
+  {{ range .Teams }}
+    <hr>
+    <div><strong><a href="{{ urlFor . "show" }}">{{ .Name }}</a></strong></div>
+    Calendar:<br>
+    <a href="https://calendar.google.com/calendar/render?cid={{ CalendarUrl . }}">
+      <button>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar" viewBox="0 0 16 16">
+          <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
+        </svg> Google
+      </button>
+    </a>
+    <a href="{{ CalendarUrl . }}">
+      <button>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar" viewBox="0 0 16 16">
+          <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
+        </svg>
+        Others
+      </button>
+    </a>
+  {{ end }}
+  <hr>
   {{ template "upcoming_games.tmpl" .}}
 {{ end }}

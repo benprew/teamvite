@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -12,6 +13,9 @@ var fMap = template.FuncMap{
 	"urlFor":       urlFor,
 	"playerEmails": playerEmails,
 	"ReminderUrl":  ReminderUrl,
+	"ReminderId":   ReminderId,
+	"CalendarUrl":  CalendarUrl,
+	"Telify":       Telify,
 }
 
 type LayoutData struct {
@@ -34,12 +38,13 @@ func (s *server) RenderTemplate(w http.ResponseWriter, r *http.Request, template
 		return err
 	}
 
-	msg := s.GetMessage(r)
+	u := s.GetUser(r)
+	msg := s.GetMessage(u)
 	log.Printf("Showing message: %s\n", msg)
 
 	params := LayoutData{
 		Message: msg,
-		User:    s.GetUser(r),
+		User:    u,
 		Page:    templateParams,
 	}
 
@@ -58,4 +63,10 @@ func defaultTemplates() *template.Template {
 		template.New("layout.tmpl").Funcs(fMap).ParseFS(views, "views/layout.tmpl"))
 
 	return template.Must(tmpl.ParseFS(views, "views/partials/*.tmpl"))
+}
+
+func CalendarUrl(t Item) template.URL {
+	return template.URL(fmt.Sprintf(
+		"webcal://%s/team/%d/calendar.ics",
+		CONFIG.Servername, t.itemId()))
 }
