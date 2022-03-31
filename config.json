@@ -5,5 +5,11 @@
     "port": 1025,
     "username": "",
     "password": ""
+  },
+  "sms": {
+    "sid": "12345",
+    "token": "12345",
+    "api": "http://teamvitedev.com:8080/test_sms_receiver",
+    "from": "8675309"
   }
 }

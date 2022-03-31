@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -113,8 +114,9 @@ func (s *server) gameShow() http.Handler {
 
 		status, ok := r.URL.Query()["status"]
 		if ok {
+			status := strings.ToUpper(status[0])
 			msg := ""
-			switch status[0] {
+			switch status[0:1] {
 			case "Y":
 				msg = "See you at the game!"
 			case "N":
@@ -123,7 +125,7 @@ func (s *server) gameShow() http.Handler {
 				msg = "Sh*t or get off the pot!"
 
 			}
-			setStatus(s.DB, status[0], user.Id, g.Id)
+			setStatus(s.DB, status[0:1], user.Id, g.Id)
 			s.SetMessage(user, msg)
 		}
 		var userGameStatus bool
@@ -208,5 +210,4 @@ func (s *server) createGame(g game) (game, error) {
 	}
 	err = s.DB.Get(&g, "select * from games where team_id = ? and time = ?", g.TeamId, g.Time.Unix())
 	return g, err
-
 }

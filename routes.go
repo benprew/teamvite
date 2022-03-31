@@ -7,13 +7,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/julienschmidt/httprouter"
-	"github.com/swithek/sessionup"
 )
 
 type server struct {
 	DB       *sqlx.DB
 	Router   *httprouter.Router
-	Mgr      *sessionup.Manager
 	MsgStore MessageStore
 }
 
@@ -22,36 +20,40 @@ func (s *server) routes() http.Handler {
 	r.GET("/css/*filepath", serveStatic)
 	r.GET("/favicon.ico", serveStatic)
 	r.GET("/robots.txt", serveStatic)
-	r.Handler("GET", "/", s.Mgr.Public(s.root()))
+	r.Handler("GET", "/", s.root())
 
-	r.Handler("GET", "/send_game_reminders", s.Mgr.Public(s.SendGameReminders()))
+	r.Handler("GET", "/sms", s.SMS())
+	r.Handler("POST", "/sms", s.SMS())
+	r.Handler("POST", "/test_sms_receiver/Accounts/:id/Messages.json", s.TestSMSReceiver())
 
-	r.Handler("GET", "/user/login", s.Mgr.Public(s.userLogin()))
-	r.Handler("POST", "/user/login", s.Mgr.Public(s.userLoginPost()))
-	r.Handler("GET", "/user/logout", s.Mgr.Auth(s.userLogout()))
+	r.Handler("GET", "/send_game_reminders", s.SendGameReminders())
 
-	r.Handler("GET", "/player/:id/show", s.Mgr.Public(s.playerShow()))
-	r.Handler("GET", "/player/:id/edit", s.Mgr.Auth(s.PlayerEdit()))
-	r.Handler("POST", "/player/:id/edit", s.Mgr.Auth(s.PlayerUpdate()))
-	r.Handler("PATCH", "/player/:id/edit", s.Mgr.Auth(s.PlayerUpdate()))
+	r.Handler("GET", "/user/login", s.userLogin())
+	r.Handler("POST", "/user/login", s.userLoginPost())
+	r.Handler("GET", "/user/logout", s.userLogout())
+
+	r.Handler("GET", "/player/:id/show", s.playerShow())
+	r.Handler("GET", "/player/:id/edit", s.PlayerEdit())
+	r.Handler("POST", "/player/:id/edit", s.PlayerUpdate())
+	r.Handler("PATCH", "/player/:id/edit", s.PlayerUpdate())
 	// r.Handler("GET", "/player", playerList)
 
-	r.Handler("GET", "/team", s.Mgr.Public(s.teamList()))
-	r.Handler("GET", "/team/:id/show", s.Mgr.Public(s.teamShow()))
-	r.Handler("GET", "/team/:id/edit", s.Mgr.Public(s.teamEdit())) // auth is handled in teamEdit
-	// r.Handler("PATCH", "/team/:id/edit", s.Mgr.Auth(s.teamUpdate()))
-	r.Handler("POST", "/team/:id/add_player", s.Mgr.Auth(s.teamAddPlayer()))
-	r.Handler("POST", "/team/:id/remove_player", s.Mgr.Auth(s.teamRemovePlayer()))
-	r.Handler("GET", "/team/:id/calendar.ics", s.Mgr.Public(s.teamCalendar()))
-	r.Handler("POST", "/team", s.Mgr.Public(s.teamCreate()))
+	r.Handler("GET", "/team", s.teamList())
+	r.Handler("GET", "/team/:id/show", s.teamShow())
+	r.Handler("GET", "/team/:id/edit", s.teamEdit())
+	// r.Handler("PATCH", "/team/:id/edit", s.teamUpdate()))
+	r.Handler("POST", "/team/:id/add_player", s.teamAddPlayer())
+	r.Handler("POST", "/team/:id/remove_player", s.teamRemovePlayer())
+	r.Handler("GET", "/team/:id/calendar.ics", s.teamCalendar())
+	r.Handler("POST", "/team", s.teamCreate())
 
 	// Handles game responses.  Done as a GET so you can follow links in email
-	r.Handler("GET", "/game/:id/show", s.Mgr.Public(s.gameShow()))
-	r.Handler("POST", "/game", s.Mgr.Public(s.GameCreate()))
+	r.Handler("GET", "/game/:id/show", s.gameShow())
+	r.Handler("POST", "/game", s.GameCreate())
 
 	// JSON APIs
-	r.Handler("GET", "/season", s.Mgr.Public(s.SeasonList()))
-	r.Handler("GET", "/division", s.Mgr.Public(s.DivisionList()))
+	r.Handler("GET", "/season", s.SeasonList())
+	r.Handler("GET", "/division", s.DivisionList())
 
 	s.Router = r
 

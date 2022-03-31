@@ -40,7 +40,9 @@ func (s *server) RenderTemplate(w http.ResponseWriter, r *http.Request, template
 
 	u := s.GetUser(r)
 	msg := s.GetMessage(u)
-	log.Printf("Showing message: %s\n", msg)
+	if msg != "" {
+		log.Println("Showing message: ", msg)
+	}
 
 	params := LayoutData{
 		Message: msg,

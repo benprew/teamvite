@@ -19,7 +19,7 @@ def main(args):
     cur = con.cursor()
     teams = parse_teams(args.file)
     for d, teams in teams.items():
-        print(f"working on {len(teams)} in division: {d}")
+        print(f"working on division: {d} teams: {len(teams)}")
         for t in teams:
             update_or_create_team(cur, d, t)
     if args.dry_run:
@@ -89,9 +89,20 @@ def parse_teams(filename):
                 continue
 
             if new_div:
-                div_name = re.sub(
-                    "^([A-Z])[A-Z']+ ([A-Z0-9]+) ?.*", "\\1\\2", line
-                ).lower()
+                # print(re.sub("[A-Z][A-Z-']+\s+([0-9][A-Z]?)\s+\(.*\)", "\\1", line))
+                m = re.match("[A-Z][A-Z-']+\s+([0-9][A-Z]?)", line)
+                div_num = m.group(1).lower()
+                if "MULTI-GENDER" in line:
+                    div_name = "c"
+                elif "WOMEN'S" in line:
+                    div_name = "w"
+                elif "MEN" in line:
+                    div_name = "m"
+                else:
+                    raise Exception(f"ERR: Unable to get div: {line}")
+
+                div_name = f"{div_name}{div_num}"
+
                 new_div = False
             else:
                 if div_name not in teams:

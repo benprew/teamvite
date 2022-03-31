@@ -7,7 +7,7 @@
     {{ end }}
   </h3>
   <hr>
-  <h5 style="margin-top: 0px">PLAYERS - {{ len .Players }}</h5>
+  <h5>PLAYERS - {{ len .Players }}</h5>
   <ul>
     {{ range .Players }}
       <li><a href="{{ urlFor . "show"}}">{{ .Name }}</a></li>

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -62,7 +62,10 @@ func upcomingGames(DB *sqlx.DB, teams []team) (games []UpcomingGame) {
                  join games g on g.team_id = t.id
                  where g.time >= ? and t.id in (?)
                  order by date;`,
-		time.Now().Truncate(24*time.Hour).Unix(),
+		// TODO: Fix upcoming games time
+		// hack to get upcoming games for today
+		// games are stored in local time, but sever time is unix time...
+		time.Now().Add(10*time.Hour*-1).Unix(),
 		teamIds,
 	)
 	checkErr(err, "binding to teams")
@@ -71,7 +74,7 @@ func upcomingGames(DB *sqlx.DB, teams []team) (games []UpcomingGame) {
 	err = DB.Select(&games, query, args...)
 	checkErr(err, "upcoming games")
 
-	fmt.Printf("Got %d games\n", len(games))
+	log.Printf("Got %d games\n", len(games))
 	responsesForGames(DB, games)
 
 	return games

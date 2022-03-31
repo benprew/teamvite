@@ -1,6 +1,6 @@
 {{ define "title" }}{{ .Player.Name}}'s homepage {{ end }}
 {{ define "content" }}
-  <h3><img style="margin-right: 5px; vertical-align: middle" alt="{{ .Player.Name }}" src="https://www.gravatar.com/avatar/{{ .Player.Email | gravatarKey }}?s=480" width="36" height="36" />{{ .Player.Name }}
+  <h3><img class="player-pic" alt="{{ .Player.Name }}" src="https://www.gravatar.com/avatar/{{ .Player.Email | gravatarKey }}?s=480" width="36" height="36" />{{ .Player.Name }}
     {{ if .IsUser }}
       <a href="{{ urlFor .Player "edit" }}"><button>Edit</button></a>
     {{ end }}
@@ -14,7 +14,7 @@
   {{ end}}
   {{ range .Teams }}
     <hr>
-    <div><strong><a href="{{ urlFor . "show" }}">{{ .Name }}</a></strong></div>
+    <div><h4><a href="{{ urlFor . "show" }}">{{ .Name }}</a></h4></div>
     Calendar:<br>
     <a href="https://calendar.google.com/calendar/render?cid={{ CalendarUrl . }}">
       <button>

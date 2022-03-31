@@ -79,6 +79,8 @@ ARGV.each do |filename|
     s = get_season(season)
     t = get_team(team)
 
+    puts("ERROR invalid team: #{team}") if t == nil
+
     add_game_for_team(s['id'], t['id'], game_time, description)
     num_games += 1
   end

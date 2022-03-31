@@ -26,11 +26,11 @@ func (p *player) itemType() string {
 	return "player"
 }
 
-func (p *PlayerTeam) itemId() int {
+func (p *playerTeam) itemId() int {
 	return p.Id
 }
 
-func (p *PlayerTeam) itemType() string {
+func (p *playerTeam) itemType() string {
 	return "team"
 }
 
@@ -45,7 +45,7 @@ func findByEmail(DB *sqlx.DB, email string) (p player, err error) {
 	return p, err
 }
 
-type PlayerTeam struct {
+type playerTeam struct {
 	Id          int    `db:"id,primarykey,autoincrement" json:"id"`
 	Name        string `db:"name,size:128" json:"name"`
 	DivisionId  int    `db:"division_id" json:"division_id"`
@@ -57,7 +57,7 @@ type PlayerTeam struct {
 type PlayerShowParams struct {
 	Player *player
 	IsUser bool
-	Teams  []PlayerTeam
+	Teams  []playerTeam
 	Games  []UpcomingGame
 }
 
@@ -65,7 +65,7 @@ func (s *server) playerShow() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := BuildContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
@@ -83,32 +83,39 @@ func (s *server) playerShow() http.Handler {
 	})
 }
 
-func playerTeams(DB *sqlx.DB, p player) (pt []PlayerTeam) {
-	err := DB.Select(&pt, "select t.id, t.name, t.division_id, pt.is_manager, pt.remind_email, pt.remind_sms from teams t join players_teams pt on t.id = pt.team_id where player_id = ?", p.Id)
-	checkErr(err, "playerTeams")
-	return
-}
-
 func (s *server) PlayerEdit() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := BuildContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
 
+		u := s.GetUser(r)
 		p := ctx.Model.(player)
+
+		if p != u {
+			log.Printf("[ERROR] buildRoute: %s\n", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		templateParams := PlayerShowParams{
 			Player: &p,
-			IsUser: p == s.GetUser(r),
+			IsUser: p == u,
 			Teams:  playerTeams(s.DB, p),
 			Games:  playerUpcomingGames(s.DB, &p),
 		}
 		log.Printf("playerEdit: rending template: %s\n", ctx.Template)
 		s.RenderTemplate(w, r, ctx.Template, templateParams)
 	})
+}
+
+func playerTeams(DB *sqlx.DB, p player) (pt []playerTeam) {
+	err := DB.Select(&pt, "select t.id, t.name, t.division_id, pt.is_manager, pt.remind_email, pt.remind_sms from teams t join players_teams pt on t.id = pt.team_id where player_id = ?", p.Id)
+	checkErr(err, "playerTeams")
+	return
 }
 
 func ReminderId(teamId int) string {
@@ -119,7 +126,7 @@ func (s *server) PlayerUpdate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := BuildContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}

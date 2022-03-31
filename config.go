@@ -11,6 +11,7 @@ var CONFIG = readConfig()
 type config struct {
 	Servername string `json:"servername"` // teamvite.com, teamvitedev.com
 	SMTP       SMTPConfig
+	SMS        SMSConfig
 }
 
 type SMTPConfig struct {
@@ -18,6 +19,13 @@ type SMTPConfig struct {
 	Port     int    `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type SMSConfig struct {
+	Sid   string `json:"sid"`
+	Token string `json:"token"`
+	API   string `json:"api"`
+	From  string `json:"from"` // From phone number
 }
 
 func readConfig() (c config) {

@@ -62,3 +62,8 @@ footer {
     clear: both;
     display: table;
 }
+
+.player-pic {
+    margin-right: 5px;
+    vertical-align: middle
+}

@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"internal/session"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -26,42 +29,75 @@ type SendReminderParams struct {
 }
 
 func ReminderUrl(g game, token string, status string) string {
-	return fmt.Sprintf("https://%s%s?token=%s&status=%s", CONFIG.Servername, urlFor(&g, "show"), token, status)
+	return fmt.Sprintf("https://%s%s?%s=%s&status=%s", CONFIG.Servername, urlFor(&g, "show"), SessionKey, token, status)
 
+}
+
+// The players_teams db table
+type PlayerTeam struct {
+	PlayerId    int  `db:"player_id"`
+	TeamId      int  `db:"team_id"`
+	IsManager   bool `db:"is_manager"`
+	RemindEmail bool `db:"remind_email"`
+	RemindSMS   bool `db:"remind_sms"`
 }
 
 func (s *server) SendGameReminders() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		teams := []team{}
-		s.DB.Select(&teams, "select * from teams")
-
-		messages := make(map[string]string, len(teams))
+		var playerTeams []PlayerTeam
+		s.DB.Select(&playerTeams, "select * from players_teams order by team_id, player_id")
+		var t team
+		var ng game
+		var mKey string
+		messages := make(map[string]string, 1000)
 		reminders := []string{}
-		for _, t := range teams {
-			mKey := fmt.Sprintf("%s-%d", t.Name, t.DivisionId)
-			g, ok := t.nextGame(s.DB)
-			if !ok || g.Time.After(time.Now().Add(time.Hour*24*5)) {
+		for _, pt := range playerTeams {
+			if pt.TeamId != t.Id {
+				t = loadTeam(s.DB, uint64(pt.TeamId))
+				ng, _ = t.NextGame(s.DB)
+				mKey = fmt.Sprintf("%s-%d", t.Name, t.DivisionId)
+			}
+
+			if ng.Id == 0 || ng.Time.After(time.Now().Add(time.Hour*24*5)) {
 				messages[mKey] = "No upcoming unreminded games"
 				continue
 			}
-			remindersSent := 0
-			log.Printf("Sending reminders for game: %s\n", g.Description)
-			for _, p := range t.Players(s.DB) {
-				pg := getOrCreateStatus(s.DB, p.Id, g.Id)
-				if pg.ReminderSent {
-					log.Printf("Reminder already sent to: %s\n", p.Email)
-					continue
-				}
 
-				// if this fails we'll just try sending again tomorrow
-				if err := s.emailReminder(p, g); err != nil {
+			log.Printf("Sending reminders for game: %s\n", ng.Description)
+
+			emailSent := 0
+			smsSent := 0
+			p := loadPlayer(s.DB, uint64(pt.PlayerId))
+			pg := getOrCreateStatus(s.DB, p.Id, ng.Id)
+			if pg.ReminderSent || pg.Status != "?" {
+				log.Printf("Reminder already sent to: %s\n", p.Name)
+				messages[mKey] = fmt.Sprintf("%s - email: %d, sms: %d", ng.Description, emailSent, smsSent)
+				continue
+			}
+
+			reminderSent := false
+			if pt.RemindEmail {
+				if err := s.emailReminder(p, ng); err != nil {
 					checkErr(err, "Sending email")
 				} else {
-					remindersSent++
-					reminders = append(reminders, fmt.Sprintf("(%d, %d)", p.Id, g.Id))
+					reminderSent = true
+					emailSent++
 				}
 			}
-			messages[mKey] = fmt.Sprintf("Emailed %s to %d players", g.Description, remindersSent)
+
+			if pt.RemindSMS {
+				if err := sendTwilioSMSMessage(p, ng); err != nil {
+					checkErr(err, "Sending SMS")
+				} else {
+					reminderSent = true
+					smsSent++
+				}
+			}
+
+			if reminderSent {
+				reminders = append(reminders, fmt.Sprintf("(%d, %d)", p.Id, ng.Id))
+			}
+			messages[mKey] = fmt.Sprintf("%s - email: %d, sms: %d", ng.Description, emailSent, smsSent)
 		}
 		if len(reminders) > 0 {
 			fmt.Println(reminders)
@@ -85,12 +121,11 @@ func (s *server) SendGameReminders() http.Handler {
 
 func (s *server) emailReminder(p player, g game) error {
 	log.Printf("Sending reminder to: %s\n", p.Email)
-	token, err := CreateToken(s.DB, p, time.Now().Add(time.Hour*24*7))
+	token, err := session.New(s.DB, p.Id, nil, time.Hour*24*7)
 	if err != nil {
 		return err
 	}
-	log.Println("token:", token)
-	body, err := reminderEmailBody(ReminderEmailParams{Player: &p, Game: &g, Token: token})
+	body, err := reminderEmailBody(reminderParams{Player: &p, Game: &g, Token: token.ID})
 	if err != nil {
 		return err
 	}
@@ -105,10 +140,9 @@ func (s *server) emailReminder(p player, g game) error {
 	auth := smtp.PlainAuth("", CONFIG.SMTP.Username, CONFIG.SMTP.Password, CONFIG.SMTP.Hostname)
 	addr := fmt.Sprintf("%s:%d", CONFIG.SMTP.Hostname, CONFIG.SMTP.Port)
 	return smtp.SendMail(addr, auth, request.Sender, request.To, []byte(msg))
-
 }
 
-type ReminderEmailParams struct {
+type reminderParams struct {
 	Player *player
 	Game   *game
 	Token  string
@@ -132,7 +166,7 @@ Can you make the game?
 Thank you for using Teamvite!
 `
 
-func reminderEmailBody(params ReminderEmailParams) (string, error) {
+func reminderEmailBody(params reminderParams) (string, error) {
 	tmpl, err := template.Must(templates.Clone()).New("content").Parse(reminderTemplate)
 	if err != nil {
 		checkErr(err, "ReminderEmail template")
@@ -155,4 +189,68 @@ func buildMessage(mail Mail) string {
 	msg += fmt.Sprintf("\r\n%s\r\n", mail.Body)
 
 	return msg
+}
+
+func sendTwilioSMSMessage(p player, g game) error {
+	sid := CONFIG.SMS.Sid
+	u := fmt.Sprintf("%s/Accounts/%s/Messages.json", CONFIG.SMS.API, sid)
+	client := &http.Client{Timeout: time.Second * 10}
+
+	body, err := smsBody(g)
+	if err != nil {
+		return err
+	}
+
+	// HTTP requests to the API are protected with HTTP Basic
+	// authentication. To learn more about how Twilio handles authentication,
+	// please refer to our security documentation.
+	//
+	// In short, you will use your Twilio Account SID as the username and your
+	// Auth Token as the password for HTTP Basic authentication with Twilio.
+	//
+	// curl -G https://api.twilio.com/2010-04-01/Accounts \
+	//   -u <YOUR_ACCOUNT_SID>:<YOUR_AUTH_TOKEN>
+	postParams := url.Values{}
+	postParams.Add("To", fmt.Sprintf("+1%d", p.Phone))
+	postParams.Add("From", CONFIG.SMS.From)
+	postParams.Add("Body", body)
+	postParams.Add("StatusCallback", "https://www.teamvite.com/sms")
+
+	log.Println(postParams)
+	log.Println(u)
+	req, err := http.NewRequest("POST", u, strings.NewReader(postParams.Encode()))
+	checkErr(err, "creating twilio post")
+	req.SetBasicAuth(CONFIG.SMS.Sid, CONFIG.SMS.Token)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
+	checkErr(err, "posting to SMS gateway")
+
+	defer resp.Body.Close()
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	checkErr(err, "SMS gateway response")
+	log.Println(string(respBody))
+
+	return err
+}
+
+var smsReminderTemplate = `
+Teamvite Game Reminder:
+{{ .Game.Time.Format "Mon Jan 2 3:04PM" }} {{ .Game.Description }}
+Reply
+YES/NO/MAYBE/STOP`
+
+func smsBody(g game) (string, error) {
+	tmpl, err := template.Must(templates.Clone()).New("content").Parse(smsReminderTemplate)
+	if err != nil {
+		checkErr(err, "parsing smsReminderTemplate")
+		return "", err
+	}
+	var w bytes.Buffer
+	if err = tmpl.ExecuteTemplate(&w, "content", struct{ Game game }{Game: g}); err != nil {
+		log.Println("[ERROR]", err)
+		return "", err
+	}
+
+	return w.String(), nil
 }

@@ -6,6 +6,8 @@ require 'uri'
 require 'set'
 require 'date'
 
+require 'iconv'
+
 URL = 'https://pdxindoorsoccer.com/wp-content/schedules'
 
 SEASONS = %w[
@@ -36,11 +38,20 @@ class BuildDb
       Thread.new do
         while (info = @workq.deq(false))
           (league, division, sub_div) = info
-          file = "/#{league}/DIV%20#{division}#{sub_div}.TXT"
+          munged_div = league == "coed" ? "Multi-Gender%20#{division}" : "DIV%20#{division}"
+          ext = league == "coed" ? ".txt" : ".TXT"
+          file = "/#{league}/#{munged_div}#{sub_div}#{ext}"
           url = URI.parse(@season_url + file)
-          warn "working on: #{url}"
+
           begin
             url.open(read_timeout: 2) do |f|
+              # open throws HTTPError on 404 responses, this captures anything
+              # unexpected that doesn't throw an error
+              if f.status[0] != "200"
+                warn "ERROR Invalid Response: #{f.status}, skipping"
+                next
+              end
+              warn "Found schedule for: #{url.to_s.sub(@season_url, '')}"
               f.each do |line|
                 data = _parse_schedule_line(_clean_line(line))
                 next unless data
@@ -123,13 +134,14 @@ class BuildDb
   end
 
   def _clean_line(line)
-    line.encode('utf-8', 'ISO-8859-1').strip.gsub(/\s+/, ' ').upcase.gsub(%r{[^A-Z0-9:&!./ ]}, '')
-  rescue ArgumentError
+    Iconv.iconv("US-ASCII//TRANSLIT", "WINDOWS-1252", line).first.strip.gsub(/\s+/, ' ').upcase.gsub(%r{[^A-Z0-9:&!./' ]}, '')
+  rescue ArgumentError => e
     open('bad_lines.txt', 'a') do |fh|
       fh.write line
     end
-    warn "bad line saved to bad_lines.txt #{line}"
-    ''
+
+    warn "ERROR bad line saved to bad_lines.txt #{line}"
+    return ''
   end
 end
 

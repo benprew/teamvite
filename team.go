@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -66,16 +66,14 @@ func (t *team) Players(DB *sqlx.DB) []player {
 }
 
 func (t *team) Games(DB *sqlx.DB) (g []game) {
-	err := DB.Select(&g, "select * from games where team_id = ? order by time", t.Id)
+	err := DB.Select(&g, "select * from games where team_id = ? order by time desc", t.Id)
 	checkErr(err, "games for team")
 	return
 }
 
-func (t *team) nextGame(DB *sqlx.DB) (g game, ok bool) {
+func (t *team) NextGame(DB *sqlx.DB) (g game, ok bool) {
 	err := DB.Get(&g, "select * from games where team_id = ? and time >= strftime('%s', date('now')) order by time limit 1", t.Id)
-	if err == nil {
-		ok = true
-	}
+	ok = err == nil
 	checkErr(err, "nextGame")
 	return
 }
@@ -96,7 +94,7 @@ func (s *server) teamShow() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := buildTeamContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
@@ -116,7 +114,7 @@ func (s *server) teamEdit() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := buildTeamContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
@@ -125,6 +123,7 @@ func (s *server) teamEdit() http.Handler {
 			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 		}
 
+		// TODO: Show division name (not id) in team edit
 		templateParams := teamEditParams{
 			Team:    &ctx.Team,
 			Players: ctx.Team.Players(s.DB),
@@ -140,7 +139,7 @@ func (s *server) teamList() http.Handler {
 		// params := httprouter.ParamsFromContext(r.Context())
 		ctx, err := buildTeamContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
@@ -183,9 +182,13 @@ func (s *server) teamAddPlayer() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := buildTeamContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
+		}
+
+		if !s.GetUser(r).IsManager(s.DB, ctx.Team) {
+			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 		}
 
 		if err := r.ParseForm(); err != nil {
@@ -219,10 +222,14 @@ func (s *server) teamRemovePlayer() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := buildTeamContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
+		if !s.GetUser(r).IsManager(s.DB, ctx.Team) {
+			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+		}
+
 		if err := r.ParseForm(); err != nil {
 			checkErr(err, "parsing remove_player form")
 			w.WriteHeader(http.StatusBadRequest)
@@ -253,7 +260,7 @@ func (s *server) teamCalendar() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := buildTeamContext(s.DB, r)
 		if err != nil {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
+			log.Printf("[WARN] buildRoute: %s\n", err)
 			http.NotFound(w, r)
 			return
 		}
@@ -276,7 +283,9 @@ func (s *server) teamCalendar() http.Handler {
 			CreateTime: time.Now(),
 		}
 
-		t := template.Must(LoadContentTemplate("views/team/calendar.ics.tmpl"))
+		filename := "views/team/calendar.ics.tmpl"
+		// parse as text/template to avoid html escaping
+		t := template.Must(template.ParseFS(views, filename))
 		w.Header().Set("Content-Type", "text/calendar;charset=utf-8")
 		t.ExecuteTemplate(w, "calendar.ics.tmpl", params)
 	})
