@@ -88,7 +88,7 @@ func saveSession(DB *sqlx.DB, s Session) error {
 		IP:        s.IP.String(),
 		ExpiresOn: s.ExpiresOn,
 	}
-	_, err := DB.NamedExec("insert into sessions_new (id, player_id, ip, expires_on) values (:id, :player_id, :ip, :expires_on)", r)
+	_, err := DB.NamedExec("insert into sessions (id, player_id, ip, expires_on) values (:id, :player_id, :ip, :expires_on)", r)
 	return err
 }
 
@@ -103,7 +103,7 @@ type dbSession struct {
 // the Load verb is common in the codebase and means to load a struct from the database
 func LoadSession(DB *sqlx.DB, sid string, ip net.IP) (Session, error) {
 	dbSess := dbSession{}
-	err := DB.Get(&dbSess, "select * from sessions_new where id = ? and expires_on >= ?", sid, time.Now().Unix())
+	err := DB.Get(&dbSess, "select * from sessions where id = ? and expires_on >= ?", sid, time.Now().Unix())
 	log.Printf("loadSession [dbSession=%v]", dbSess)
 	if err != nil {
 		return Session{}, err
@@ -123,15 +123,18 @@ func LoadSession(DB *sqlx.DB, sid string, ip net.IP) (Session, error) {
 }
 
 func Revoke(DB *sqlx.DB, sid string) error {
-	_, err := DB.Exec("delete from sessions_new where id = ?", sid)
+	_, err := DB.Exec("delete from sessions where id = ?", sid)
 	log.Printf("Revoked session [sid=%s]", sid)
 	return err
 }
 
-func SidFromCookie(r *http.Request, keyName string) (sid string, err error) {
-	if c, err := r.Cookie(keyName); err == nil {
-		log.Printf("Loaded cookies [sid=%s, cookie=%s, path=%s]", c.Value, c, r.URL.Path)
-		sid = c.Value
+func SidsFromCookie(r *http.Request, keyName string) (sid []string, err error) {
+	for _, c := range r.Cookies() {
+		if c.Name != keyName {
+			continue
+		}
+		log.Printf("Loaded cookie [cookie=%s sid=%s]", c, c.Value)
+		sid = append(sid, c.Value)
 	}
 	return sid, err
 }

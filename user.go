@@ -13,14 +13,44 @@ import (
 
 type user player
 
+func (s *server) GetUser(req *http.Request) (usr player) {
+	t, ok := req.URL.Query()[SessionKey]
+	var err error
+	var sess session.Session
+	if ok && t[0] != "" {
+		sid := t[0]
+		log.Printf("Finding player with token: %s\n", sid)
+		sess, err = session.LoadSession(s.DB, sid, session.RequestIP(req))
+		checkErr(err, "getting player from token")
+	}
+
+	// if we couldn't get player from token, try getting from session
+	if sess.ID == "" {
+		sids, err := session.SidsFromCookie(req, SessionKey)
+		checkErr(err, "Failed to get sids from cookie")
+		for _, sid := range sids {
+			sess, err = session.LoadSession(s.DB, sid, session.RequestIP(req))
+			if err == nil {
+				break
+			}
+		}
+		checkErr(err, "loading session from cookie")
+	}
+
+	err = s.DB.Get(&usr, "select * from players where id = ?", sess.PlayerID)
+	checkErr(err, fmt.Sprintf("get user from session: %d", sess.PlayerID))
+	return
+}
+
 func (s *server) userLogout() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sid, err := session.SidFromCookie(r, SessionKey)
-		log.Printf("got sid from cookie [sid=%s, err=%s, key=%s]", sid, err, SessionKey)
-		checkErr(err, fmt.Sprintf("got sid from cookie [sid=%s]", sid))
-		if err := session.Revoke(s.DB, sid); err != nil {
-			log.Printf("ERR: %s\n", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		sids, err := session.SidsFromCookie(r, SessionKey)
+		checkErr(err, "Failed to get sids from cookie")
+		for _, sid := range sids {
+			if err := session.Revoke(s.DB, sid); err != nil {
+				checkErr(err, "Failed to revoke session")
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
 		}
 		http.Redirect(w, r, "/", http.StatusFound)
 	})

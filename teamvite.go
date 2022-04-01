@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"internal/session"
 	"log"
 	"net/http"
 	"regexp"
@@ -31,29 +30,6 @@ func main() {
 	}
 
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", s.routes()))
-}
-
-func (s *server) GetUser(req *http.Request) (usr player) {
-	t, ok := req.URL.Query()[SessionKey]
-	var err error
-	var sess session.Session
-	if ok && t[0] != "" {
-		sid := t[0]
-		log.Printf("Finding player with token: %s\n", sid)
-		sess, err = session.LoadSession(s.DB, sid, session.RequestIP(req))
-		checkErr(err, "getting player from token")
-	}
-
-	// if we couldn't get player from token, try getting from session
-	if sess.ID == "" {
-		sid, _ := session.SidFromCookie(req, SessionKey)
-		sess, err = session.LoadSession(s.DB, sid, session.RequestIP(req))
-		checkErr(err, "loading session from cookie")
-	}
-
-	err = s.DB.Get(&usr, "select * from players where id = ?", sess.PlayerID)
-	checkErr(err, fmt.Sprintf("get user from session: %d", sess.PlayerID))
-	return
 }
 
 type Item interface {
