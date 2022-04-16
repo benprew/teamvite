@@ -1,3 +1,14 @@
 #!/bin/bash
 
-docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app golang:1.17-bullseye go build -v
+[[ -e /usr/local/musl/bin/musl-gcc ]] || { echo "ERROR: musl not installed"; exit 1; }
+
+# to install musl libc:
+# 1. download latest release from https://www.musl-libc.org/download.html
+# 2. tar zxvf <file>
+# 3. ./configure --disable-shared && make && sudo make install
+# - by default musl installs into /usr/local/musl to avoid libc conflicts
+
+CGO_ENABLED=1 CC=/usr/local/musl/bin/musl-gcc \
+              go build \
+              -ldflags="-extldflags=-static" \
+              -tags sqlite_omit_load_extension
