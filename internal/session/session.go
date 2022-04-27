@@ -16,14 +16,17 @@ import (
 // get user id from it
 
 // ## Security
-// log when a session is created and from what ip address (but don't log session-id)
+// log when a session is created and from what ip address (but don't log
+// session-id)
 //
 // can read session_id from cookie or from params (replace tokens)
 //
 // look up owasp recommendations for sessions
 // https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
 //
-// The session ID must be long enough to prevent brute force attacks, where an attacker can go through the whole range of ID values and verify the existence of valid sessions.
+// The session ID must be long enough to prevent brute force attacks, where an
+// attacker can go through the whole range of ID values and verify the existence
+// of valid sessions.
 // The session ID length must be at least 128 bits (16 bytes).
 
 // sessions:
@@ -48,7 +51,7 @@ type Session struct {
 //     ip := session.RequestIP(httpRequest)
 //     s := session.New(DB, 123, ip, time.Hour * 24 * 30)
 //     s.SetCookie(httpRequest, "teamvite-session")
-
+//
 //   2. when sending game reminders
 //     don't need to set cookie value
 //     s := session.New(DB, 123, nil, time.Hour * 24 * 7)
@@ -115,8 +118,9 @@ func LoadSession(DB *sqlx.DB, sid string, ip net.IP) (Session, error) {
 		ExpiresOn: dbSess.ExpiresOn,
 	}
 	if ip != nil && s.IP != nil && !ip.Equal(s.IP) {
-		log.Printf("[WARN] ip mismatch [req=%s db=%s]", ip, s.IP)
-		err = fmt.Errorf("ip mismatch")
+		msg := fmt.Sprintf("ip mismatch [req=%s db=%s]", ip, s.IP)
+		log.Printf("[WARN] %s\n", msg)
+		return Session{}, fmt.Errorf(msg)
 	}
 	log.Printf("loaded session [sid=%s, ip=%s, session=%v]", sid, s.IP, s)
 	return s, err
