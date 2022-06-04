@@ -16,6 +16,11 @@ func (s *server) SMS() http.Handler {
 		// TODO: validate request signature
 		// https://www.twilio.com/docs/usage/security#http-authentication
 		// message := make(map[string]string)
+
+		// TODO: use SmsMessageSid to get unique message id
+		// https://support.twilio.com/hc/en-us/articles/223134387-What-is-a-Message-SID-
+		// https://www.twilio.com/docs/glossary/what-is-a-sid
+
 		err := r.ParseForm()
 		checkErr(err, "Parsing form data")
 
@@ -86,10 +91,6 @@ func (s *server) SMS() http.Handler {
 
 		// docs on post body
 		// https://www.twilio.com/docs/messaging/guides/webhook-request
-
-		// example post body
-		// ToCountry=US&ToState=TX&SmsMessageSid=SM033a45097c6d5215abc207f2febf4b30&NumMedia=0&ToCity=DALLAS&FromZip=97210&SmsSid=SM033a45097c6d5215abc207f2febf4b30&FromState=OR&SmsStatus=received&FromCity=PORTLAND&Body=Yes&FromCountry=US&To=%2B19034004302&ToZip=75201&NumSegments=1&MessageSid=SM033a45097c6d5215abc207f2febf4b30&AccountSid=AC8bcd77c23a77f5afa54bb3564ed68d0b&From=%2B19715337840&ApiVersion=2010-04-01
-
 	})
 }
 

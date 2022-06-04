@@ -192,8 +192,8 @@ func buildMessage(mail Mail) string {
 }
 
 func sendTwilioSMSMessage(p player, g game) error {
-	sid := CONFIG.SMS.Sid
-	u := fmt.Sprintf("%s/Accounts/%s/Messages.json", CONFIG.SMS.API, sid)
+	accountSid := CONFIG.SMS.Sid
+	u := fmt.Sprintf("%s/Accounts/%s/Messages.json", CONFIG.SMS.API, accountSid)
 	client := &http.Client{Timeout: time.Second * 10}
 
 	body, err := smsBody(g)

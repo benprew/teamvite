@@ -13,6 +13,12 @@ import (
 
 type user player
 
+func (u player) IsManager(DB *sqlx.DB, t team) (isMgr bool) {
+	err := DB.Get(&isMgr, "select is_manager from players_teams where player_id = ? and team_id = ?", u.Id, t.Id)
+	checkErr(err, fmt.Sprintf("unable to check manager [player_id=%d, team_id=%d]", u.Id, t.Id))
+	return
+}
+
 func (s *server) GetUser(req *http.Request) (usr player) {
 	t, ok := req.URL.Query()[SessionKey]
 	var err error
@@ -105,10 +111,4 @@ func (s *server) userLoginPost() http.Handler {
 		// err = s.Mgr.Init(w, r, fmt.Sprint(userID))
 		http.Redirect(w, r, urlFor(&p, "show"), http.StatusFound)
 	})
-}
-
-func (u player) IsManager(DB *sqlx.DB, t team) (isMgr bool) {
-	err := DB.Get(&isMgr, "select is_manager from players_teams where player_id = ? and team_id = ?", u.Id, t.Id)
-	checkErr(err, fmt.Sprintf("unable to check manager [player_id=%d, team_id=%d]", u.Id, t.Id))
-	return
 }
