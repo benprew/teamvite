@@ -22,7 +22,7 @@ func main() {
 	db := getDB()
 	defer db.Close()
 
-	if os.Args[1] == "serv" || len(os.Args) == 1 {
+	if len(os.Args) == 1 || os.Args[1] == "serv" {
 		fmt.Printf("Starting teamvite server on port 8080\n")
 		serv(db)
 	} else if os.Args[1] == "resetpassword" {
