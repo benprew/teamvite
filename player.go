@@ -168,16 +168,19 @@ func (s *server) PlayerUpdate() http.Handler {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			log.Printf("Updating password to: %s\n", pHash)
+			log.Printf("Updating password to: %s\n", string(pHash[:]))
 			p.Password = sql.NullString{String: string(pHash[:]), Valid: true}
 		}
 
+		// Note: updates happen whether things have changed or not
 		_, err = s.DB.NamedExec("update players set name=:name, email=:email, phone=:phone, password=:password  where id = :id", p)
 		checkErr(err, "update player")
 
 		for _, pt := range playerTeams(s.DB, p) {
 			reminders := r.Form[ReminderId(pt.Id)]
 			log.Println("reminders:", reminders)
+			pt.RemindEmail = false
+			pt.RemindSMS = false
 			for _, r := range reminders {
 				log.Println("reminder:", r)
 				log.Println(pt)
