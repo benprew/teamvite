@@ -95,8 +95,7 @@ func (s *server) PlayerEdit() http.Handler {
 		p := ctx.Model.(player)
 
 		if p != u {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
-			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "Must be logged in as player", http.StatusUnauthorized)
 			return
 		}
 
