@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type game struct {
@@ -50,7 +48,7 @@ type gameCtx struct {
 	Template string
 }
 
-func buildGameContext(DB *sqlx.DB, r *http.Request) (gameCtx, error) {
+func buildGameContext(DB *QueryLogger, r *http.Request) (gameCtx, error) {
 	ctx, err := BuildContext(DB, r)
 	if err != nil {
 		return gameCtx{}, err
@@ -129,7 +127,7 @@ func (s *server) gameShow() http.Handler {
 			s.SetMessage(user, msg)
 		}
 		var userGameStatus bool
-		s.DB.QueryRow("select true from players_teams pt join games g using (team_id) where player_id = ? and g.id = ?", user.Id, g.Id).Scan(&userGameStatus)
+		s.DB.QueryRowx("select true from players_teams pt join games g using (team_id) where player_id = ? and g.id = ?", user.Id, g.Id).Scan(&userGameStatus)
 		log.Printf("PLAYER ON TEAM: %t, %d, %d\n", userGameStatus, user.Id, g.Id)
 
 		templateParams := gameShowParams{
@@ -156,7 +154,7 @@ func (s *server) gameShow() http.Handler {
 // game status can be set on the game page, and it will upsert/find_or_create status
 // for emails, pass a session_id param and use that to get the player_id
 // otherwise just use the current session player_id
-func setStatus(DB *sqlx.DB, status string, userId int, gameId int) {
+func setStatus(DB *QueryLogger, status string, userId int, gameId int) {
 	if status == "" || userId == 0 || gameId == 0 {
 		if status != "" && userId == 0 {
 			fmt.Println("WARN: Can't set status without a user")
@@ -178,7 +176,7 @@ func setStatus(DB *sqlx.DB, status string, userId int, gameId int) {
 	}
 }
 
-func getOrCreateStatus(DB *sqlx.DB, playerId int, gameId int) (pg playerGame) {
+func getOrCreateStatus(DB *QueryLogger, playerId int, gameId int) (pg playerGame) {
 	err := DB.Get(&pg, "select * from players_games where player_id = ? and game_id = ?", playerId, gameId)
 	checkErr(err, "game getOrCreateStatus")
 	if errors.Is(err, sql.ErrNoRows) {

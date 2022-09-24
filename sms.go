@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-
-	"github.com/jmoiron/sqlx"
 )
 
 func (s *server) SMS() http.Handler {
@@ -102,7 +100,7 @@ func (s *server) TestSMSReceiver() http.Handler {
 	})
 }
 
-func playerByPhone(DB *sqlx.DB, phone int) (p player) {
+func playerByPhone(DB *QueryLogger, phone int) (p player) {
 	if phone == -1 {
 		return
 	}

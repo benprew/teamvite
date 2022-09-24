@@ -5,12 +5,11 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/julienschmidt/httprouter"
 )
 
 type server struct {
-	DB       *sqlx.DB
+	DB       *QueryLogger
 	Router   *httprouter.Router
 	MsgStore MessageStore
 }

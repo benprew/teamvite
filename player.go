@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -34,13 +33,13 @@ func (p *playerTeam) itemType() string {
 	return "team"
 }
 
-func (p *player) Teams(DB *sqlx.DB) (teams []team) {
+func (p *player) Teams(DB *QueryLogger) (teams []team) {
 	err := DB.Select(&teams, "select t.* from teams t join players_teams on t.id = team_id where player_id = ?", p.Id)
 	checkErr(err, "player.Teams")
 	return teams
 }
 
-func findByEmail(DB *sqlx.DB, email string) (p player, err error) {
+func findByEmail(DB *QueryLogger, email string) (p player, err error) {
 	err = DB.Get(&p, "select * from players where email = ?", email)
 	return p, err
 }
@@ -112,7 +111,7 @@ func (s *server) PlayerEdit() http.Handler {
 	})
 }
 
-func playerTeams(DB *sqlx.DB, p player) (pt []playerTeam) {
+func playerTeams(DB *QueryLogger, p player) (pt []playerTeam) {
 	err := DB.Select(&pt, "select t.id, t.name, t.division_id, pt.is_manager, pt.remind_email, pt.remind_sms from teams t join players_teams pt on t.id = pt.team_id where player_id = ?", p.Id)
 	checkErr(err, "playerTeams")
 	return

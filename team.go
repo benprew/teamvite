@@ -11,8 +11,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type team struct {
@@ -58,27 +56,27 @@ func (t *team) itemType() string {
 	return "team"
 }
 
-func (t *team) Players(DB *sqlx.DB) []player {
+func (t *team) Players(DB *QueryLogger) []player {
 	var p []player
 	err := DB.Select(&p, "select p.* from players p join players_teams on p.id = player_id where team_id = ? order by p.name", t.Id)
 	checkErr(err, "players for teams")
 	return p
 }
 
-func (t *team) Games(DB *sqlx.DB) (g []game) {
+func (t *team) Games(DB *QueryLogger) (g []game) {
 	err := DB.Select(&g, "select * from games where team_id = ? order by time desc", t.Id)
 	checkErr(err, "games for team")
 	return
 }
 
-func (t *team) NextGame(DB *sqlx.DB) (g game, ok bool) {
+func (t *team) NextGame(DB *QueryLogger) (g game, ok bool) {
 	err := DB.Get(&g, "select * from games where team_id = ? and time >= strftime('%s', date('now')) order by time limit 1", t.Id)
 	ok = err == nil
 	checkErr(err, "nextGame")
 	return
 }
 
-func buildTeamContext(DB *sqlx.DB, r *http.Request) (teamCtx, error) {
+func buildTeamContext(DB *QueryLogger, r *http.Request) (teamCtx, error) {
 	ctx, err := BuildContext(DB, r)
 	if err != nil {
 		return teamCtx{}, err

@@ -7,13 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type user player
 
-func (u player) IsManager(DB *sqlx.DB, t team) (isMgr bool) {
+func (u player) IsManager(DB *QueryLogger, t team) (isMgr bool) {
 	err := DB.Get(&isMgr, "select is_manager from players_teams where player_id = ? and team_id = ?", u.Id, t.Id)
 	checkErr(err, fmt.Sprintf("unable to check manager [player_id=%d, team_id=%d]", u.Id, t.Id))
 	return
@@ -26,7 +25,7 @@ func (s *server) GetUser(req *http.Request) (usr player) {
 	if ok && t[0] != "" {
 		sid := t[0]
 		log.Printf("Finding player with token: %s\n", sid)
-		sess, err = session.LoadSession(s.DB, sid, session.RequestIP(req))
+		sess, err = session.LoadSession(s.DB.queryer, sid, session.RequestIP(req))
 		checkErr(err, "getting player from token")
 	}
 
@@ -35,7 +34,7 @@ func (s *server) GetUser(req *http.Request) (usr player) {
 		sids, err := session.SidsFromCookie(req, SessionKey)
 		checkErr(err, "Failed to get sids from cookie")
 		for _, sid := range sids {
-			sess, err = session.LoadSession(s.DB, sid, session.RequestIP(req))
+			sess, err = session.LoadSession(s.DB.queryer, sid, session.RequestIP(req))
 			if err == nil {
 				break
 			}
@@ -53,7 +52,7 @@ func (s *server) userLogout() http.Handler {
 		sids, err := session.SidsFromCookie(r, SessionKey)
 		checkErr(err, "Failed to get sids from cookie")
 		for _, sid := range sids {
-			if err := session.Revoke(s.DB, sid); err != nil {
+			if err := session.Revoke(s.DB.queryer, sid); err != nil {
 				checkErr(err, "Failed to revoke session")
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
@@ -97,14 +96,14 @@ func (s *server) userLoginPost() http.Handler {
 		if err != nil {
 			msg := "incorrect password"
 			s.SetMessage(s.GetUser(r), msg)
-			log.Println(msg, err)
+			log.Println(msg, err, string(password[:]), string(hash[:]))
 			s.RenderTemplate(w, r, "views/user/login.tmpl", nil)
 			return
 		}
 		log.Println("DEBUG: logging in as user:", p)
 		userID := p.Id
 		ip := session.RequestIP(r)
-		s, err := session.New(s.DB, userID, ip, time.Hour*24*30)
+		s, err := session.New(s.DB.queryer, userID, ip, time.Hour*24*30)
 		s.SetCookie(w, SessionKey, CONFIG.Servername)
 		checkErr(err, fmt.Sprintf("created session [player_id=%d]", userID))
 

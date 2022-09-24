@@ -121,7 +121,7 @@ func (s *server) SendGameReminders() http.Handler {
 
 func (s *server) emailReminder(p player, g game) error {
 	log.Printf("Sending reminder to: %s\n", p.Email)
-	token, err := session.New(s.DB, p.Id, nil, time.Hour*24*7)
+	token, err := session.New(s.DB.queryer, p.Id, nil, time.Hour*24*7)
 	if err != nil {
 		return err
 	}

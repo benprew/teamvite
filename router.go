@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type routePath struct {
@@ -22,7 +20,7 @@ type RouteContext struct {
 	Template string
 }
 
-func BuildContext(DB *sqlx.DB, r *http.Request) (ctx RouteContext, err error) {
+func BuildContext(DB *QueryLogger, r *http.Request) (ctx RouteContext, err error) {
 	routeInfo, err := buildRouteInfo(r)
 	if err != nil {
 		return
@@ -83,7 +81,7 @@ func buildRouteInfo(req *http.Request) (routePath, error) {
 	return rStr, nil
 }
 
-func loadPlayer(DB *sqlx.DB, id uint64) (p player) {
+func loadPlayer(DB *QueryLogger, id uint64) (p player) {
 	if id < 1 {
 		return
 	}
@@ -93,7 +91,7 @@ func loadPlayer(DB *sqlx.DB, id uint64) (p player) {
 	return
 }
 
-func loadTeam(DB *sqlx.DB, id uint64) (t team) {
+func loadTeam(DB *QueryLogger, id uint64) (t team) {
 	if id < 1 {
 		return
 	}
@@ -102,7 +100,7 @@ func loadTeam(DB *sqlx.DB, id uint64) (t team) {
 	return
 }
 
-func loadGame(DB *sqlx.DB, id uint64) (g game) {
+func loadGame(DB *QueryLogger, id uint64) (g game) {
 	if id < 1 {
 		return
 	}

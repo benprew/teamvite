@@ -27,13 +27,13 @@ type GameResponse struct {
 	Players []string
 }
 
-func teamUpcomingGames(DB *sqlx.DB, t team) []UpcomingGame {
+func teamUpcomingGames(DB *QueryLogger, t team) []UpcomingGame {
 	return upcomingGames(DB, []team{t})
 }
 
 // Only show responses on player homepage and on team page when player plays on
 // that team
-func playerUpcomingGames(DB *sqlx.DB, p *player) []UpcomingGame {
+func playerUpcomingGames(DB *QueryLogger, p *player) []UpcomingGame {
 	teams := []team{}
 	err := DB.Select(
 		&teams,
@@ -43,7 +43,7 @@ func playerUpcomingGames(DB *sqlx.DB, p *player) []UpcomingGame {
 	return upcomingGames(DB, teams)
 }
 
-func upcomingGames(DB *sqlx.DB, teams []team) (games []UpcomingGame) {
+func upcomingGames(DB *QueryLogger, teams []team) (games []UpcomingGame) {
 	teamIds := []int{}
 
 	if len(teams) == 0 {
@@ -80,14 +80,14 @@ func upcomingGames(DB *sqlx.DB, teams []team) (games []UpcomingGame) {
 	return games
 }
 
-func responsesForGames(DB *sqlx.DB, games []UpcomingGame) {
+func responsesForGames(DB *QueryLogger, games []UpcomingGame) {
 	for i, game := range games {
 		r := responsesForGame(DB, game.Id)
 		games[i].Responses = r
 	}
 }
 
-func responsesForGame(DB *sqlx.DB, id int) []GameResponse {
+func responsesForGame(DB *QueryLogger, id int) []GameResponse {
 	var r [4]GameResponse
 	respMap := map[string]int{
 		"Yes":      0,
