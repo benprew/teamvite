@@ -5,5 +5,7 @@ teamvite.db
 notes.org
 .python-version
 
+
 # https://go.googlesource.com/proposal/+/master/design/45713-workspace.md
 go.work
+/bin/__pycache__/
