@@ -1,20 +1,21 @@
-package main
+package http
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 )
 
-type server struct {
-	DB       *QueryLogger
-	Router   *httprouter.Router
-	MsgStore MessageStore
+func urlFor(i Item, action string) string {
+	id := i.itemID()
+	name := i.itemType()
+	return fmt.Sprintf("/%s/%d/%s", name, id, action)
 }
 
-func (s *server) routes() http.Handler {
+func (s *Server) routes() http.Handler {
 	r := httprouter.New()
 	r.GET("/css/*filepath", serveStatic)
 	r.GET("/favicon.ico", serveStatic)
@@ -67,10 +68,10 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) root() http.Handler {
+func (s *Server) root() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := s.GetUser(r)
-		if u.Id == 0 {
+		if u.ID == 0 {
 			http.Redirect(w, r, "/user/login", http.StatusFound)
 		} else {
 			http.Redirect(w, r, urlFor(&u, "show"), http.StatusFound)

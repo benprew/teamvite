@@ -1,33 +1,24 @@
-package main
+package teamvite
 
-import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-)
+import "context"
 
 type Division struct {
-	Id   int    `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-func (s *server) DivisionList() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		divisions := []Division{}
-		nameQuery := ""
-		nameWhere := ""
+type DivisionService interface {
+	FindDivisionByID(ctx context.Context, id uint64) (*Division, error)
 
-		q, ok := r.URL.Query()["name"]
-		if ok && q[0] != "" {
-			nameQuery = q[0]
-			nameWhere = "where name like ?"
-		}
+	// Retrieves a list of Divisions based on a filter.
+	FindDivisions(ctx context.Context, filter DivisionFilter) ([]*Division, int, error)
+}
 
-		query := fmt.Sprintf("select * from divisions %s order by name", nameWhere)
-		err := s.DB.Select(&divisions, query, fmt.Sprintf("%%%s%%", nameQuery))
-		checkErr(err, "division list")
+type DivisionFilter struct {
+	ID   *uint64 `json:"id"`
+	Name *string `json:"name"`
 
-		w.Header().Set("Content-Type", JSON)
-		json.NewEncoder(w).Encode(divisions)
-	})
+	// Restrict to subset of range.
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 }

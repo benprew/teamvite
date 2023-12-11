@@ -1,16 +1,18 @@
-package main
+package http
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"strings"
+
+	teamvite "github.com/benprew/teamvite"
 )
 
 type routePath struct {
 	Model    string
-	Id       uint64
+	ID       uint64
 	Method   string
 	Template string
 }
@@ -20,8 +22,8 @@ type RouteContext struct {
 	Template string
 }
 
-func BuildContext(DB *QueryLogger, r *http.Request) (ctx RouteContext, err error) {
-	routeInfo, err := buildRouteInfo(r)
+func (s *Server) BuildContext(c context.Context, path string) (ctx RouteContext, err error) {
+	routeInfo, err := buildRouteInfo(path)
 	if err != nil {
 		return
 	}
@@ -33,13 +35,13 @@ func BuildContext(DB *QueryLogger, r *http.Request) (ctx RouteContext, err error
 	switch routeInfo.Model {
 	case "player":
 		nullM = player{}
-		ctx.Model = loadPlayer(DB, routeInfo.Id)
+		// ctx.Model = s.PlayerService.FindPlayerByID(c, routeInfo.ID)
 	case "team":
 		nullM = team{}
-		ctx.Model = loadTeam(DB, routeInfo.Id)
+		ctx.Model, err = s.TeamService.FindTeamByID(c, routeInfo.ID)
 	case "game":
-		nullM = game{}
-		ctx.Model = loadGame(DB, routeInfo.Id)
+		nullM = teamvite.Game{}
+		ctx.Model, err = s.GameService.FindGameByID(c, routeInfo.ID)
 	default:
 		err = fmt.Errorf("no model defined for: %s", routeInfo.Model)
 		return
@@ -48,16 +50,15 @@ func BuildContext(DB *QueryLogger, r *http.Request) (ctx RouteContext, err error
 	// This handles the case where we should have a model (ie show/edit) but
 	// don't because it's invalid and the case where we shouldn't have a model
 	// (ie list)
-	if routeInfo.Id > 0 && ctx.Model == nullM {
-		err = fmt.Errorf("no %s found for id: %d", routeInfo.Model, routeInfo.Id)
+	if routeInfo.ID > 0 && ctx.Model == nullM {
+		err = fmt.Errorf("no %s found for id: %d", routeInfo.Model, routeInfo.ID)
 		return
 	}
 
 	return
 }
 
-func buildRouteInfo(req *http.Request) (routePath, error) {
-	path := req.URL.EscapedPath()
+func buildRouteInfo(path string) (routePath, error) {
 	pieces := strings.Split(path, "/")
 	var rStr routePath
 	if len(pieces) == 2 {
@@ -79,33 +80,4 @@ func buildRouteInfo(req *http.Request) (routePath, error) {
 	rStr.Template = template
 
 	return rStr, nil
-}
-
-func loadPlayer(DB *QueryLogger, id uint64) (p player) {
-	if id < 1 {
-		return
-	}
-
-	err := DB.Get(&p, "select * from players where id = ?", id)
-	checkErr(err, "error loading player: ")
-	return
-}
-
-func loadTeam(DB *QueryLogger, id uint64) (t team) {
-	if id < 1 {
-		return
-	}
-	err := DB.Get(&t, "select * from teams where id = ?", id)
-	checkErr(err, "error loading team: ")
-	return
-}
-
-func loadGame(DB *QueryLogger, id uint64) (g game) {
-	if id < 1 {
-		return
-	}
-
-	err := DB.Get(&g, "select * from games where id = ?", id)
-	checkErr(err, "error loading game: ")
-	return
 }

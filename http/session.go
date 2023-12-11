@@ -1,4 +1,4 @@
-package session
+package http
 
 import (
 	"fmt"
@@ -41,38 +41,43 @@ import (
 type Session struct {
 	ID        string    `db:"id"`
 	PlayerID  int       `db:"player_id"`
-	IP        net.IP    `db:"ip"`
+	ipStr     string    `db:"ip"`
 	ExpiresOn time.Time `db:"expires_on"`
+	IP        net.IP
 }
 
 // Creating a Session
-//   1. when logging in
+//
+//  1. when logging in
 //     need to set cookie value
 //     ip := session.RequestIP(httpRequest)
 //     s := session.New(DB, 123, ip, time.Hour * 24 * 30)
 //     s.SetCookie(httpRequest, "teamvite-session")
 //
-//   2. when sending game reminders
+//  2. when sending game reminders
 //     don't need to set cookie value
 //     s := session.New(DB, 123, nil, time.Hour * 24 * 7)
 //     ReminderUrl(game, s.ID)
 //
-// Loading a Session from and ID
-//   1. From Cookie
+// Loading a Session from an ID
+//
+//  1. From Cookie
 //     sid, err := session.SidFromCookie(request, "teamvite-session")
 //     checkErr(err)
 //     s, err := session.LoadSession(DB, sid)
 //
-//   2. From Request Param
+//  2. From Request Param
 //     s, err := session.LoadSession(DB, params["teamvite-session"])
 //
 // Logging a User Out
-//   session.Revoke(DB, sid)
+//
+//	session.Revoke(DB, sid)
 //
 // Session IDs
-//   Session IDs are strings of length 25 that can include the characters
-//   [0-9a-zA-Z] which provides ~148 bits of entropy. OWASP recommendation is 128
-//   bits.
+//
+//	Session IDs are strings of length 25 that can include the characters
+//	[0-9a-zA-Z] which provides ~148 bits of entropy. OWASP recommendation is 128
+//	bits.
 func New(DB *sqlx.DB, playerID int, IP net.IP, sessionLen time.Duration) (Session, error) {
 	s := Session{
 		ID:        genSessionID(25),
@@ -85,38 +90,22 @@ func New(DB *sqlx.DB, playerID int, IP net.IP, sessionLen time.Duration) (Sessio
 }
 
 func saveSession(DB *sqlx.DB, s Session) error {
-	r := dbSession{
-		ID:        s.ID,
-		PlayerID:  s.PlayerID,
-		IP:        s.IP.String(),
-		ExpiresOn: s.ExpiresOn,
+	if s.ipStr == "" {
+		s.ipStr = s.IP.String()
 	}
-	_, err := DB.NamedExec("insert into sessions (id, player_id, ip, expires_on) values (:id, :player_id, :ip, :expires_on)", r)
+	_, err := DB.NamedExec("insert into sessions (id, player_id, ip, expires_on) values (:id, :player_id, :ip, :expires_on)", s)
 	return err
-}
-
-// the raw db row for a session
-type dbSession struct {
-	ID        string    `db:"id"`
-	PlayerID  int       `db:"player_id"`
-	IP        string    `db:"ip"`
-	ExpiresOn time.Time `db:"expires_on"`
 }
 
 // the Load verb is common in the codebase and means to load a struct from the database
 func LoadSession(DB *sqlx.DB, sid string, ip net.IP) (Session, error) {
-	dbSess := dbSession{}
-	err := DB.Get(&dbSess, "select * from sessions where id = ? and expires_on >= ?", sid, time.Now().Unix())
-	log.Printf("loadSession [dbSession=%v]", dbSess)
+	s := Session{}
+	err := DB.Get(&s, "select * from sessions where id = ? and expires_on >= ?", sid, time.Now().Unix())
+	log.Printf("loadSession [dbSession=%v]", s)
 	if err != nil {
 		return Session{}, err
 	}
-	s := Session{
-		ID:        dbSess.ID,
-		PlayerID:  dbSess.PlayerID,
-		IP:        net.ParseIP(dbSess.IP),
-		ExpiresOn: dbSess.ExpiresOn,
-	}
+	s.IP = net.ParseIP(s.ipStr)
 	if ip != nil && s.IP != nil && !ip.Equal(s.IP) {
 		msg := fmt.Sprintf("ip mismatch [req=%s db=%s]", ip, s.IP)
 		log.Printf("[WARN] %s\n", msg)
