@@ -15,8 +15,8 @@ type DivisionService interface {
 }
 
 type DivisionFilter struct {
-	ID   *uint64 `json:"id"`
-	Name *string `json:"name"`
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
 
 	// Restrict to subset of range.
 	Offset int `json:"offset"`

@@ -1,4 +1,4 @@
-package main
+package teamvite
 
 import (
 	"encoding/json"
@@ -6,9 +6,10 @@ import (
 	"os"
 )
 
-var CONFIG = readConfig()
+var CONFIG = DefaultConfig()
+var DefaultConfigPath = "config.json"
 
-type config struct {
+type Config struct {
 	Servername string `json:"servername"` // teamvite.com, teamvitedev.com
 	SMTP       SMTPConfig
 	SMS        SMSConfig
@@ -28,8 +29,8 @@ type SMSConfig struct {
 	From  string `json:"from"` // From phone number
 }
 
-func readConfig() (c config) {
-	configFile := "config.json"
+func DefaultConfig() (c Config) {
+	configFile := DefaultConfigPath
 	f, err := os.ReadFile(configFile)
 	if err != nil {
 		log.Fatalln("[FATAL]: config file not found: ", configFile)

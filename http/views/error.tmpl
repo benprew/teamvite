@@ -1,0 +1,15 @@
+{{ define "content" }}
+	<div>
+		<%= .StatusCode %>
+	</div>
+
+	<p>
+		<%= .Header %>
+	</p>
+
+	<hr />
+
+	<p>
+		<%= .Message %>
+	</p>
+{{ end }}

@@ -1,19 +1,13 @@
 package http
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/dchest/uniuri"
-	"github.com/jmoiron/sqlx"
+	teamvite "github.com/benprew/teamvite"
 )
-
-// v1. don't support flash messages, just set a session id and read that in and
-// get user id from it
 
 // ## Security
 // log when a session is created and from what ip address (but don't log
@@ -38,13 +32,13 @@ import (
 //
 // key name: - either param or cookie name
 // teamvite-session
-type Session struct {
-	ID        string    `db:"id"`
-	PlayerID  int       `db:"player_id"`
-	ipStr     string    `db:"ip"`
-	ExpiresOn time.Time `db:"expires_on"`
-	IP        net.IP
-}
+// type Session struct {
+// 	ID        string    `db:"id"`
+// 	PlayerID  int       `db:"player_id"`
+// 	ipStr     string    `db:"ip"`
+// 	ExpiresOn time.Time `db:"expires_on"`
+// 	IP        net.IP
+// }
 
 // Creating a Session
 //
@@ -78,50 +72,50 @@ type Session struct {
 //	Session IDs are strings of length 25 that can include the characters
 //	[0-9a-zA-Z] which provides ~148 bits of entropy. OWASP recommendation is 128
 //	bits.
-func New(DB *sqlx.DB, playerID int, IP net.IP, sessionLen time.Duration) (Session, error) {
-	s := Session{
-		ID:        genSessionID(25),
-		PlayerID:  playerID,
-		IP:        IP,
-		ExpiresOn: time.Now().Add(sessionLen),
-	}
-	return s, saveSession(DB, s)
+// func (s *Server) New(playerID int, IP net.IP, sessionLen time.Duration) (Session, error) {
+// 	session := teamvite.Session{
+// 		ID:        genSessionID(25),
+// 		PlayerID:  playerID,
+// 		IP:        IP,
+// 		ExpiresOn: time.Now().Add(sessionLen),
+// 	}
+// 	return session, saveSession(DB, session)
 
-}
+// }
 
-func saveSession(DB *sqlx.DB, s Session) error {
-	if s.ipStr == "" {
-		s.ipStr = s.IP.String()
-	}
-	_, err := DB.NamedExec("insert into sessions (id, player_id, ip, expires_on) values (:id, :player_id, :ip, :expires_on)", s)
-	return err
-}
+// func saveSession(DB *sqlx.DB, s Session) error {
+// 	if s.ipStr == "" {
+// 		s.ipStr = s.IP.String()
+// 	}
+// 	_, err := DB.NamedExec("insert into sessions (id, player_id, ip, expires_on) values (:id, :player_id, :ip, :expires_on)", s)
+// 	return err
+// }
 
 // the Load verb is common in the codebase and means to load a struct from the database
-func LoadSession(DB *sqlx.DB, sid string, ip net.IP) (Session, error) {
-	s := Session{}
-	err := DB.Get(&s, "select * from sessions where id = ? and expires_on >= ?", sid, time.Now().Unix())
-	log.Printf("loadSession [dbSession=%v]", s)
-	if err != nil {
-		return Session{}, err
-	}
-	s.IP = net.ParseIP(s.ipStr)
-	if ip != nil && s.IP != nil && !ip.Equal(s.IP) {
-		msg := fmt.Sprintf("ip mismatch [req=%s db=%s]", ip, s.IP)
-		log.Printf("[WARN] %s\n", msg)
-		return Session{}, fmt.Errorf(msg)
-	}
-	log.Printf("loaded session [sid=%s, ip=%s, session=%v]", sid, s.IP, s)
-	return s, err
-}
+// func LoadSession(DB *sqlx.DB, sid string, ip net.IP) (Session, error) {
+// 	s := Session{}
+// 	err := DB.Get(&s, "select * from sessions where id = ? and expires_on >= ?", sid, time.Now().Unix())
+// 	log.Printf("loadSession [dbSession=%v]", s)
+// 	if err != nil {
+// 		return Session{}, err
+// 	}
+// 	s.IP = net.ParseIP(s.ipStr)
+// 	if ip != nil && s.IP != nil && !ip.Equal(s.IP) {
+// 		msg := fmt.Sprintf("ip mismatch [req=%s db=%s]", ip, s.IP)
+// 		log.Printf("[WARN] %s\n", msg)
+// 		return Session{}, fmt.Errorf(msg)
+// 	}
+// 	log.Printf("loaded session [sid=%s, ip=%s, session=%v]", sid, s.IP, s)
+// 	return s, err
+// }
 
-func Revoke(DB *sqlx.DB, sid string) error {
-	_, err := DB.Exec("delete from sessions where id = ?", sid)
-	log.Printf("Revoked session [sid=%s]", sid)
-	return err
-}
+// func Revoke(DB *sqlx.DB, sid string) error {
+// 	_, err := DB.Exec("delete from sessions where id = ?", sid)
+// 	log.Printf("Revoked session [sid=%s]", sid)
+// 	return err
+// }
 
-func SidsFromCookie(r *http.Request, keyName string) (sid []string, err error) {
+func SidsFromCookie(r *http.Request, keyName string) (sid []string) {
 	for _, c := range r.Cookies() {
 		if c.Name != keyName {
 			continue
@@ -129,7 +123,7 @@ func SidsFromCookie(r *http.Request, keyName string) (sid []string, err error) {
 		log.Printf("Loaded cookie [cookie=%s sid=%s]", c, c.Value)
 		sid = append(sid, c.Value)
 	}
-	return sid, err
+	return sid
 }
 
 func RequestIP(r *http.Request) net.IP {
@@ -143,20 +137,16 @@ func RequestIP(r *http.Request) net.IP {
 	return net.ParseIP(ip)
 }
 
-func (s *Session) SetCookie(w http.ResponseWriter, keyName string, domain string) {
+func (s *Server) SetCookie(w http.ResponseWriter, session teamvite.Session) {
 	cookie := &http.Cookie{
-		Name:     keyName,
-		Value:    s.ID,
-		Domain:   domain,
-		Expires:  s.ExpiresOn,
+		Name:     SESSION_KEY,
+		Value:    session.ID,
+		Domain:   s.Domain,
+		Expires:  session.ExpiresOn,
 		Secure:   false, // teamvite serves http behind nginx proxy
 		HttpOnly: true,
 		Path:     "/",
 		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, cookie)
-}
-
-func genSessionID(length uint) string {
-	return uniuri.NewLen(int(length))
 }

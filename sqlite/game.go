@@ -30,7 +30,7 @@ func (s *GameService) FindGameByID(ctx context.Context, id uint64) (*teamvite.Ga
 	}
 	defer tx.Rollback()
 
-	games, _, err := findGames(ctx, tx, teamvite.GameFilter{ID: &id})
+	games, _, err := findGames(ctx, tx, teamvite.GameFilter{ID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,8 @@ func (s *GameService) CreateGame(ctx context.Context, g *teamvite.Game) error {
 	return nil
 }
 
-func (s *GameService) SetStatus(ctx context.Context, game *teamvite.Game, status string) error {
-	player := teamvite.PlayerFromContext(ctx)
+func (s *GameService) UpdateStatus(ctx context.Context, game *teamvite.Game, status string) error {
+	player := teamvite.UserFromContext(ctx)
 	if status == "" || player.ID == 0 || game.ID == 0 {
 		if status != "" && player.ID == 0 {
 			return teamvite.Errorf(teamvite.EUNAUTHORIZED, "Can't set status without a player")
@@ -177,15 +177,15 @@ func findGames(ctx context.Context, tx *sql.Tx, filter teamvite.GameFilter) (_ [
 	// Build WHERE clause. Each part of the WHERE clause is AND-ed together.
 	// Values are appended to an arg list to avoid SQL injection.
 	where, args := []string{"1 = 1"}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "id = ?"), append(args, *v)
+	if v := filter.ID; v != 0 {
+		where, args = append(where, "id = ?"), append(args, v)
 	}
 
-	if v := filter.TeamID; v != nil {
-		where, args = append(where, "team_id = ?"), append(args, *v)
+	if v := filter.TeamID; v != 0 {
+		where, args = append(where, "team_id = ?"), append(args, v)
 	}
 
-	if v := filter.PlayerID; v != nil {
+	if v := filter.PlayerID; v != 0 {
 		where = append(where, `(
 			id IN (SELECT game_id FROM games
 				JOIN teams USING(team_id)
@@ -195,7 +195,7 @@ func findGames(ctx context.Context, tx *sql.Tx, filter teamvite.GameFilter) (_ [
 		args = append(args, v)
 	}
 
-	if v := filter.Time; v != nil {
+	if v := filter.Time; v != 0 {
 		where = append(where, "time >= ?")
 		args = append(args, v)
 	}

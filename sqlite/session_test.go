@@ -1,18 +1,17 @@
-package session
+package sqlite
 
 import (
 	"net"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestLoadSessionIpMismatch(t *testing.T) {
-	db, err := sqlx.Connect("sqlite3", ":memory:")
-	panicIf(err)
+	db := Open(":memory:")
+	srv := NewSessionService(db)
 
-	_, err = db.Exec(`
+	_, err := db.Exec(`
 CREATE TABLE sessions (
     id varchar(128) NOT NULL PRIMARY KEY,
     player_id NOT NULL,
@@ -26,7 +25,7 @@ CREATE TABLE sessions (
 	_, err = db.Exec("insert into sessions (id, player_id, ip) values (123, 123, '127.0.0.2')")
 	panicIf(err)
 
-	s, err := LoadSession(db, "123", net.ParseIP("127.0.0.1"))
+	s, err := srv.Load("123", net.ParseIP("127.0.0.1"))
 	if s.PlayerID != 0 {
 		t.Errorf("Session was valid [session=%v]", s)
 	}

@@ -46,6 +46,9 @@ func ErrorCode(err error) string {
 	if err == nil {
 		return ""
 	} else if errors.As(err, &e) {
+		if e == nil {
+			return ""
+		}
 		return e.Code
 	}
 	return EINTERNAL
@@ -58,6 +61,9 @@ func ErrorMessage(err error) string {
 	if err == nil {
 		return ""
 	} else if errors.As(err, &e) {
+		if e == nil {
+			return ""
+		}
 		return e.Message
 	}
 	return "Internal error."

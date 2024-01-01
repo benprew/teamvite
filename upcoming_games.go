@@ -1,127 +1,79 @@
-package main
+package teamvite
 
-import (
-	"log"
-	"time"
+// func (g *UpcomingGame) itemID() int {
+// 	return g.ID
+// }
 
-	"github.com/jmoiron/sqlx"
-)
+// func (g *UpcomingGame) itemType() string {
+// 	return "game"
+// }
 
-func (g *UpcomingGame) itemId() int {
-	return g.Id
-}
+// type UpcomingGame struct {
+// 	ID          int
+// 	Date        *time.Time
+// 	Description string
+// 	Responses   []GameResponse
+// }
 
-func (g *UpcomingGame) itemType() string {
-	return "game"
-}
+// Players that have responded Yes/No/Maybe/No Reply
+// TODO: Name should probably be an enum
 
-type UpcomingGame struct {
-	Id          int
-	Date        *time.Time
-	Description string
-	Responses   []GameResponse
-}
+// func teamUpcomingGames(DB *QueryLogger, t Team) []UpcomingGame {
+// 	return upcomingGames(DB, []Team{t})
+// }
 
-type GameResponse struct {
-	Name    string
-	Players []string
-}
+// // Only show responses on player homepage and on team page when player plays on
+// // that team
+// func playerUpcomingGames(DB *QueryLogger, p *Player) []UpcomingGame {
+// 	teams := []Team{}
+// 	err := DB.Select(
+// 		&teams,
+// 		"select t.* from teams t join players_teams on team_id = t.id where player_id = ?",
+// 		p.ID)
+// 	checkErr(err, "player upcoming games teams filter")
+// 	return upcomingGames(DB, teams)
+// }
 
-func teamUpcomingGames(DB *QueryLogger, t team) []UpcomingGame {
-	return upcomingGames(DB, []team{t})
-}
+// func upcomingGames(DB *QueryLogger, teams []Team) (games []UpcomingGame) {
+// 	teamIDs := []int{}
 
-// Only show responses on player homepage and on team page when player plays on
-// that team
-func playerUpcomingGames(DB *QueryLogger, p *player) []UpcomingGame {
-	teams := []team{}
-	err := DB.Select(
-		&teams,
-		"select t.* from teams t join players_teams on team_id = t.id where player_id = ?",
-		p.Id)
-	checkErr(err, "player upcoming games teams filter")
-	return upcomingGames(DB, teams)
-}
+// 	if len(teams) == 0 {
+// 		return games
+// 	}
 
-func upcomingGames(DB *QueryLogger, teams []team) (games []UpcomingGame) {
-	teamIds := []int{}
+// 	for _, t := range teams {
+// 		teamIDs = append(teamIDs, t.ID)
+// 	}
 
-	if len(teams) == 0 {
-		return games
-	}
+// 	query, args, err := sqlx.In(
+// 		`select g.id as id,
+//                  g.time as date,
+//                  g.description as description
+//                  from teams t
+//                  join games g on g.team_id = t.id
+//                  where g.time >= ? and t.id in (?)
+//                  order by date;`,
+// 		// TODO: Fix upcoming games time
+// 		// hack to get upcoming games for today
+// 		// games are stored in local time, but sever time is unix time...
+// 		time.Now().Add(10*time.Hour*-1).Unix(),
+// 		teamIDs,
+// 	)
+// 	checkErr(err, "binding to teams")
+// 	query = DB.Rebind(query)
 
-	for _, t := range teams {
-		teamIds = append(teamIds, t.Id)
-	}
+// 	err = DB.Select(&games, query, args...)
+// 	checkErr(err, "upcoming games")
 
-	query, args, err := sqlx.In(
-		`select g.id as id,
-                 g.time as date,
-                 g.description as description
-                 from teams t
-                 join games g on g.team_id = t.id
-                 where g.time >= ? and t.id in (?)
-                 order by date;`,
-		// TODO: Fix upcoming games time
-		// hack to get upcoming games for today
-		// games are stored in local time, but sever time is unix time...
-		time.Now().Add(10*time.Hour*-1).Unix(),
-		teamIds,
-	)
-	checkErr(err, "binding to teams")
-	query = DB.Rebind(query)
+// 	log.Printf("Got %d games\n", len(games))
+// 	ResponsesForGames(DB, games)
 
-	err = DB.Select(&games, query, args...)
-	checkErr(err, "upcoming games")
+// 	return games
+// }
 
-	log.Printf("Got %d games\n", len(games))
-	responsesForGames(DB, games)
-
-	return games
-}
-
-func responsesForGames(DB *QueryLogger, games []UpcomingGame) {
-	for i, game := range games {
-		r := responsesForGame(DB, game.Id)
-		games[i].Responses = r
-	}
-}
-
-func responsesForGame(DB *QueryLogger, id int) []GameResponse {
-	var r [4]GameResponse
-	respMap := map[string]int{
-		"Yes":      0,
-		"No":       1,
-		"Maybe":    2,
-		"No Reply": 3,
-	}
-
-	for k, v := range respMap {
-		r[v].Name = k
-	}
-
-	rows, err := DB.Queryx(`
-select
-  case
-    when pg.status = 'N' then 'No'
-    when pg.status = 'Y' then 'Yes'
-    when pg.status = 'M' then 'Maybe'
-    else 'No Reply'
-  end as status,
-  name
-from games g
-join players_teams pt using(team_id)
-join players p on pt.player_id = p.id
-left join players_games pg on pg.game_id = g.id and pg.player_id = p.id
-where g.id = ?
-order by status desc, name`, id)
-	checkErr(err, "game show query")
-	defer rows.Close()
-	for rows.Next() {
-		var status, name string
-		rows.Scan(&status, &name)
-		idx := respMap[status]
-		r[idx].Players = append(r[idx].Players, name)
-	}
-	return r[:]
-}
+// func ResponsesForGames(DB *QueryLogger, games []UpcomingGame) {
+// 	for i, game := range games {
+// 		r := ResponsesForGame(DB, game.ID)
+// 		games[i].Responses = r
+// 	}
+// }

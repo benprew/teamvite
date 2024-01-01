@@ -20,11 +20,17 @@ type PlayerGame struct {
 	ReminderSent bool   `db:"reminder_sent"`
 }
 
-func (g *Game) itemID() uint64 {
+type GameResponse struct {
+	Name    string
+	Players []string
+}
+
+// for urlFor
+func (g *Game) ItemID() uint64 {
 	return g.ID
 }
 
-func (g *Game) itemType() string {
+func (g *Game) ItemType() string {
 	return "game"
 }
 
@@ -46,7 +52,7 @@ type GameService interface {
 	// game status can be set on the game page, and it will upsert/find_or_create status
 	// for emails, pass a session_id param and use that to get the player_id
 	// otherwise just use the current session player_id
-	SetStatus(ctx context.Context, game *Game, status string) error
+	UpdateStatus(ctx context.Context, game *Game, status string) error
 
 	// Return the players bucketd by reply status for a game
 	ResponsesForGame(ctx context.Context, game *Game) (_ []*GameResponse, err error)
@@ -55,10 +61,10 @@ type GameService interface {
 // GameFilter represents a filter used by FindGames().
 type GameFilter struct {
 	// Filtering fields.
-	ID       *uint64 `json:"id"`
-	TeamID   *uint64 `json:"team_id"`
-	PlayerID *uint64 `json:"player_id"`
-	Time     int64   `json:"time"` // unix epoch seconds
+	ID       uint64 `json:"id"`
+	TeamID   uint64 `json:"team_id"`
+	PlayerID uint64 `json:"player_id"`
+	Time     int64  `json:"time"` // unix epoch seconds
 
 	// Restrict to subset of range.
 	Offset int `json:"offset"`

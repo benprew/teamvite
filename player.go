@@ -1,207 +1,82 @@
-package main
+package teamvite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"net/http"
 
-	"golang.org/x/crypto/bcrypt"
+	ql "github.com/benprew/teamvite/query_logger"
 )
 
-type player struct {
-	Id       int            `db:"id,primarykey,autoincrement"`
+type Player struct {
+	ID       uint64         `db:"id,primarykey,autoincrement"`
 	Name     string         `db:"name,size:64"`
 	Email    string         `db:"email,size:128"`
 	Password sql.NullString `db:"password,size:256,default:''"`
 	Phone    int            `db:"phone"`
 }
 
-func (p *player) itemId() int {
-	return p.Id
+// A team with additional player info from players_teams
+type PlayerTeam struct {
+	ID          uint64 // team id
+	Name        string
+	IsManager   bool
+	RemindSMS   bool
+	RemindEmail bool
 }
 
-func (p *player) itemType() string {
+func (p *Player) ItemID() uint64 {
+	return p.ID
+}
+
+func (p *Player) ItemType() string {
 	return "player"
 }
 
-func (p *playerTeam) itemId() int {
-	return p.Id
+type PlayerService interface {
+	FindPlayerByID(ctx context.Context, id uint64) (*Player, error)
+
+	// Retrieves a list of Players based on a filter. Also returns a count of total matching Teams which may
+	// differ from the number of returned Teams if the "Limit" field is set.
+	FindPlayers(ctx context.Context, filter PlayerFilter) ([]*Player, int, error)
+
+	// Returns a list of teams that the player from the context plays on,
+	// Includes extra info such as ismanager and reminder settings
+	Teams(ctx context.Context, teamIDsFilter ...uint64) ([]PlayerTeam, error)
+
+	NextRemindedGame(ctx context.Context, playerID uint64) (Game, error)
+
+	CreatePlayer(ctx context.Context, player *Player) error
+
+	// Updates a player's info
+	UpdatePlayer(ctx context.Context) error
+
+	// Update team status (reminder, is_manager, etc)
+	UpdatePlayerTeam(ctx context.Context, playerTeam *PlayerTeam) error
+
+	ResetPassword(ctx context.Context, password string) error
 }
 
-func (p *playerTeam) itemType() string {
-	return "team"
+type PlayerFilter struct {
+	// Filtering fields.
+	ID     *uint64 `json:"id"`
+	Name   *string `json:"name"`
+	TeamID *uint64 `json:"team_id"`
+	Email  string  `json:"email"`
+	Phone  int     `json:"phone"`
+
+	// Restrict to subset of range.
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 }
 
-func (p *player) Teams(DB *QueryLogger) (teams []team) {
-	err := DB.Select(&teams, "select t.* from teams t join players_teams on t.id = team_id where player_id = ?", p.Id)
-	checkErr(err, "player.Teams")
-	return teams
+func ReminderID(teamID int) string {
+	return fmt.Sprintf("reminders_%d", teamID)
 }
 
-func findByEmail(DB *QueryLogger, email string) (p player, err error) {
-	err = DB.Get(&p, "select * from players where email = ?", email)
-	return p, err
-}
-
-type playerTeam struct {
-	Id          int    `db:"id,primarykey,autoincrement" json:"id"`
-	Name        string `db:"name,size:128" json:"name"`
-	DivisionId  int    `db:"division_id" json:"division_id"`
-	IsManager   bool   `db:"is_manager"`
-	RemindSMS   bool   `db:"remind_sms"`
-	RemindEmail bool   `db:"remind_email"`
-}
-
-type PlayerShowParams struct {
-	Player *player
-	IsUser bool
-	Teams  []playerTeam
-	Games  []UpcomingGame
-}
-
-func (s *server) playerShow() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, err := BuildContext(s.DB, r)
-		if err != nil {
-			log.Printf("[WARN] buildRoute: %s\n", err)
-			http.NotFound(w, r)
-			return
-		}
-
-		p := ctx.Model.(player)
-		u := s.GetUser(r)
-		templateParams := PlayerShowParams{
-			Player: &p,
-			IsUser: p == u,
-			Teams:  playerTeams(s.DB, p),
-			Games:  playerUpcomingGames(s.DB, &p),
-		}
-		log.Printf("playerShow: rending template: %s\n", ctx.Template)
-		s.RenderTemplate(w, r, ctx.Template, templateParams)
-	})
-}
-
-func (s *server) PlayerEdit() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, err := BuildContext(s.DB, r)
-		if err != nil {
-			log.Printf("[WARN] buildRoute: %s\n", err)
-			http.NotFound(w, r)
-			return
-		}
-
-		u := s.GetUser(r)
-		p := ctx.Model.(player)
-
-		if p != u {
-			http.Error(w, "Must be logged in as player", http.StatusUnauthorized)
-			return
-		}
-
-		templateParams := PlayerShowParams{
-			Player: &p,
-			IsUser: p == u,
-			Teams:  playerTeams(s.DB, p),
-			Games:  playerUpcomingGames(s.DB, &p),
-		}
-		log.Printf("playerEdit: rending template: %s\n", ctx.Template)
-		s.RenderTemplate(w, r, ctx.Template, templateParams)
-	})
-}
-
-func playerTeams(DB *QueryLogger, p player) (pt []playerTeam) {
-	err := DB.Select(&pt, "select t.id, t.name, t.division_id, pt.is_manager, pt.remind_email, pt.remind_sms from teams t join players_teams pt on t.id = pt.team_id where player_id = ?", p.Id)
-	checkErr(err, "playerTeams")
-	return
-}
-
-func ReminderId(teamId int) string {
-	return fmt.Sprintf("reminders_%d", teamId)
-}
-
-func (s *server) PlayerUpdate() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, err := BuildContext(s.DB, r)
-		if err != nil {
-			log.Printf("[WARN] buildRoute: %s\n", err)
-			http.NotFound(w, r)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			checkErr(err, "parsing add_player form")
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		log.Println("=======PLAYER UPDATE FORM")
-		log.Println(r.PostForm)
-
-		log.Printf("playerUpdate\n")
-
-		u := s.GetUser(r)
-		p := ctx.Model.(player)
-
-		if p != u {
-			log.Printf("[ERROR] buildRoute: %s\n", err)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		p.Name = r.PostForm.Get("name")
-		p.Email = r.PostForm.Get("email")
-		tel := UnTelify(r.PostForm.Get("phone"))
-		if tel != -1 {
-			p.Phone = tel
-		} else {
-			log.Printf("[WARN] invalid phone number: %s\n", r.PostForm.Get("phone"))
-			s.SetMessage(u, "Invalid phone number, must be 10 digits")
-			http.Redirect(w, r, urlFor(&u, "edit"), http.StatusFound)
-			return
-		}
-		pass := r.PostForm.Get("password")
-		if pass != "" {
-			pHash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			log.Printf("Updating password to: %s\n", string(pHash[:]))
-			p.Password = sql.NullString{String: string(pHash[:]), Valid: true}
-		}
-
-		// Note: updates happen whether things have changed or not
-		_, err = s.DB.NamedExec("update players set name=:name, email=:email, phone=:phone, password=:password  where id = :id", p)
-		checkErr(err, "update player")
-
-		for _, pt := range playerTeams(s.DB, p) {
-			reminders := r.Form[ReminderId(pt.Id)]
-			log.Println("reminders:", reminders)
-			pt.RemindEmail = false
-			pt.RemindSMS = false
-			for _, r := range reminders {
-				log.Println("reminder:", r)
-				log.Println(pt)
-				if r == "email" {
-					pt.RemindEmail = true
-				}
-				if r == "sms" {
-					pt.RemindSMS = true
-				}
-			}
-			log.Println(pt)
-			_, err := s.DB.NamedExec(
-				fmt.Sprintf("update players_teams set remind_email=:remind_email, remind_sms=:remind_sms where player_id = %d and team_id = :id", p.Id),
-				pt)
-			checkErr(err, "update pt")
-		}
-
-		http.Redirect(w, r, urlFor(&u, "show"), http.StatusFound)
-	})
-}
-
-type playerCtx struct {
-	Player   player
-	Template string
+func NeedsGameReminder(DB *ql.QueryLogger, playerID int, gameID int) bool {
+	var pg PlayerGame
+	err := DB.Get(&pg, "select * from players_games where player_id = ? and game_id = ?", playerID, gameID)
+	checkErr(err, "game getOrCreateStatus")
+	return !pg.ReminderSent || pg.Status == ""
 }

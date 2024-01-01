@@ -7,15 +7,21 @@ import (
 	teamvite "github.com/benprew/teamvite"
 )
 
-func (s *Server) DivisionList() http.Handler {
+type Season struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func (s *Server) SeasonList() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nameQuery := r.URL.Query().Get("name")
-		divisions, _, err := s.DivisionService.FindDivisions(r.Context(), teamvite.DivisionFilter{Name: nameQuery})
+		seasons, _, err := s.SeasonService.FindSeasons(r.Context(), teamvite.SeasonFilter{Name: nameQuery})
 		if err != nil {
 			s.Error(w, r, err)
 			return
 		}
+
 		w.Header().Set("Content-Type", JSON)
-		json.NewEncoder(w).Encode(divisions)
+		json.NewEncoder(w).Encode(seasons)
 	})
 }

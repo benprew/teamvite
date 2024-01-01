@@ -81,7 +81,7 @@ func (s *Server) gameShow() http.Handler {
 		}
 
 		g := ctx.Game
-		userID := teamvite.PlayerIDFromContext(r.Context())
+		userID := teamvite.UserIDFromContext(r.Context())
 
 		status, ok := r.URL.Query()["status"]
 		if ok {
@@ -96,10 +96,12 @@ func (s *Server) gameShow() http.Handler {
 				msg = "Sh*t or get off the pot!"
 
 			}
-			s.GameService.SetStatus(r.Context(), g, status[0:1])
+			s.GameService.UpdateStatus(r.Context(), g, status[0:1])
 			SetFlash(w, msg)
 		}
-		_, n, err := s.GameService.FindGames(r.Context(), teamvite.GameFilter{PlayerID: &userID, ID: &g.ID})
+		_, n, err := s.GameService.FindGames(
+			r.Context(),
+			teamvite.GameFilter{PlayerID: userID, ID: g.ID})
 		userGameStatus := n == 1
 		log.Printf("PLAYER ON TEAM: %t, %d, %d\n", userGameStatus, userID, g.ID)
 		if err != nil {

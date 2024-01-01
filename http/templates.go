@@ -1,4 +1,4 @@
-package main
+package http
 
 import (
 	"embed"
@@ -6,21 +6,21 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+
+	teamvite "github.com/benprew/teamvite"
 )
 
 var fMap = template.FuncMap{
-	"gravatarKey":  gravatarKey,
-	"urlFor":       urlFor,
+	"gravatarKey":  teamvite.GravatarKey,
+	"urlFor":       UrlFor,
 	"playerEmails": playerEmails,
-	"ReminderUrl":  ReminderUrl,
-	"ReminderId":   ReminderId,
 	"CalendarUrl":  CalendarUrl,
-	"Telify":       Telify,
+	"Telify":       teamvite.Telify,
 }
 
 type LayoutData struct {
 	Message string
-	User    player
+	User    teamvite.Player
 	Page    interface{} // page specific parameters
 }
 
@@ -32,14 +32,14 @@ func LoadContentTemplate(filename string) (*template.Template, error) {
 	return template.Must(templates.Clone()).ParseFS(views, filename)
 }
 
-func (s *server) RenderTemplate(w http.ResponseWriter, r *http.Request, template string, templateParams interface{}) error {
+func (s *Server) RenderTemplate(w http.ResponseWriter, r *http.Request, template string, templateParams interface{}) error {
 	tmpl, err := LoadContentTemplate(template)
 	if err != nil {
 		return err
 	}
 
 	u := s.GetUser(r)
-	msg := s.GetMessage(u)
+	msg := LoadFlash(w, r)
 	if msg != "" {
 		log.Println("Showing message: ", msg)
 	}
@@ -67,8 +67,8 @@ func defaultTemplates() *template.Template {
 	return template.Must(tmpl.ParseFS(views, "views/partials/*.tmpl"))
 }
 
-func CalendarUrl(t Item) template.URL {
+func CalendarUrl(t teamvite.Team) template.URL {
 	return template.URL(fmt.Sprintf(
 		"webcal://%s/team/%d/calendar.ics",
-		CONFIG.Servername, t.itemId()))
+		teamvite.CONFIG.Servername, t.ID))
 }

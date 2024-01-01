@@ -4,17 +4,21 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 
+	teamvite "github.com/benprew/teamvite"
 	"github.com/julienschmidt/httprouter"
 )
 
-func urlFor(i Item, action string) string {
-	id := i.itemID()
-	name := i.itemType()
+func UrlFor(i teamvite.Item, action string) string {
+	id := i.ItemID()
+	name := i.ItemType()
 	return fmt.Sprintf("/%s/%d/%s", name, id, action)
 }
 
+// TODO: Add context middleware to domain routes (team/player/game/etc)
+// TODO: Add auth middleware to appropriate routes (team/player/game/etc)
 func (s *Server) routes() http.Handler {
 	r := httprouter.New()
 	r.GET("/css/*filepath", serveStatic)
@@ -26,7 +30,7 @@ func (s *Server) routes() http.Handler {
 	r.Handler("POST", "/sms", s.SMS())
 	r.Handler("POST", "/test_sms_receiver/Accounts/:id/Messages.json", s.TestSMSReceiver())
 
-	r.Handler("GET", "/send_game_reminders", s.SendGameReminders())
+	// r.Handler("GET", "/send_game_reminders", s.SendGameReminders())
 
 	r.Handler("GET", "/user/login", s.userLogin())
 	r.Handler("POST", "/user/login", s.userLoginPost())
@@ -55,7 +59,7 @@ func (s *Server) routes() http.Handler {
 	r.Handler("GET", "/season", s.SeasonList())
 	r.Handler("GET", "/division", s.DivisionList())
 
-	s.Router = r
+	// s.Router = r
 
 	return r
 }
@@ -74,7 +78,7 @@ func (s *Server) root() http.Handler {
 		if u.ID == 0 {
 			http.Redirect(w, r, "/user/login", http.StatusFound)
 		} else {
-			http.Redirect(w, r, urlFor(&u, "show"), http.StatusFound)
+			http.Redirect(w, r, UrlFor(&u, "show"), http.StatusFound)
 		}
 	})
 }
@@ -84,7 +88,11 @@ var static embed.FS
 
 func serveStatic(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	staticSub, err := fs.Sub(static, "static")
-	checkErr(err, "subdir of static")
+	if err != nil {
+		log.Printf("Failed to get subdir of static: %s\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	handler := http.FileServer(http.FS(staticSub))
 	handler.ServeHTTP(w, r)
 }
