@@ -17,9 +17,6 @@ func UrlFor(i teamvite.Item, action string) string {
 	return fmt.Sprintf("/%s/%d/%s", name, id, action)
 }
 
-// TODO: Add context middleware to domain routes (team/player/game/etc)
-// TODO: Add auth middleware to appropriate routes (team/player/game/etc)
-// TODO: is there a better way to do this? Gorilla Mux has a "use" function
 func (s *Server) routes() http.Handler {
 	r := httprouter.New()
 	r.GET("/css/*filepath", serveStatic)
@@ -30,8 +27,6 @@ func (s *Server) routes() http.Handler {
 	r.Handler("GET", "/sms", s.SMS())
 	r.Handler("POST", "/sms", s.SMS())
 	r.Handler("POST", "/test_sms_receiver/Accounts/:id/Messages.json", s.TestSMSReceiver())
-
-	// r.Handler("GET", "/send_game_reminders", s.SendGameReminders())
 
 	r.Handler("GET", "/user/login", s.routeWithMiddleware(s.userLogin()))
 	r.Handler("POST", "/user/login", s.routeWithMiddleware(s.userLoginPost()))
@@ -60,8 +55,6 @@ func (s *Server) routes() http.Handler {
 	r.Handler("GET", "/season", s.routeWithMiddleware(s.SeasonList()))
 	r.Handler("GET", "/division", s.routeWithMiddleware(s.DivisionList()))
 
-	// s.Router = r
-
 	return r
 }
 
@@ -72,11 +65,10 @@ func (s *Server) routeWithMiddleware(handler http.Handler) http.Handler {
 func (s *Server) root() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := s.GetUser(r)
-		if u.ID == 0 {
+		if u == nil {
 			http.Redirect(w, r, "/user/login", http.StatusFound)
-		} else {
-			http.Redirect(w, r, UrlFor(&u, "show"), http.StatusFound)
 		}
+		http.Redirect(w, r, UrlFor(u, "show"), http.StatusFound)
 	})
 }
 

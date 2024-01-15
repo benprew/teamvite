@@ -11,7 +11,7 @@
     <nav>
       <ul>
         <li><a class="brand" href="/">Teamvite</a></li>
-        {{ if .User.ID  }}
+        {{ if .User  }}
           <li><a href="/user/logout">Logout</a></li>
           <li><a href="/player/{{ .User.ID }}/show">{{ .User.Name }}</a></li>
         {{ else }}

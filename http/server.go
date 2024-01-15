@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -52,16 +53,6 @@ func (s *Server) Close() error {
 	defer cancel()
 	return s.server.Shutdown(ctx)
 }
-
-// Run as server
-// func serv(db *ql.QueryLogger) {
-// 	s := Server{
-// 		DB:       db,
-// 		MsgStore: NewMessageStore(),
-// 	}
-
-// 	s.Open()
-// }
 
 // ErrorResponse represents a JSON structure for error output.
 type ErrorResponse struct {
@@ -131,6 +122,7 @@ func (s *Server) routeModelMiddleware(next http.Handler) http.Handler {
 			}
 			r = r.WithContext(teamvite.NewContextWithGame(r.Context(), routeInfo.Template, game))
 		} else if routeInfo.ModelType == "division" {
+			// we only allow division list, there aren't division show/edit/etc pages
 			r = r.WithContext(teamvite.NewContextWithDivision(r.Context(), routeInfo.Template, &teamvite.Division{}))
 		}
 
@@ -144,7 +136,10 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		var sids []string
 
 		// try loading user from request token
-		sids = append(sids, sidFromRequest(r))
+		sid := sidFromRequest(r)
+		if sid != "" {
+			sids = append(sids, sid)
+		}
 		// try loading user from cookie
 		sids = append(sids, SidsFromCookie(r, SESSION_KEY)[:]...)
 
@@ -153,14 +148,22 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			if user.ID != 0 {
 				break
 			}
+			log.Println("[INFO] Finding session with sid:", sid)
 			sess, err := s.SessionService.Load(sid, RequestIP(r))
 			if err != nil {
-				log.Printf("Failed to load session: %s\n", err)
+				log.Printf("[WARN] Failed to load session: %s\n", err)
 				continue
 			}
 			user, err = s.PlayerService.FindPlayerByID(r.Context(), sess.PlayerID)
 			if err != nil {
-				log.Printf("Failed to load player: %s\n", err)
+				log.Printf("[ERROR] Failed to load user (player): %s\n", err)
+				if err == sql.ErrNoRows {
+					SetFlash(w, "Unable to load your account, please login again.")
+					s.logout(w, r)
+					return
+				}
+				s.Error(w, r, err)
+				return
 			}
 		}
 		r = r.WithContext(teamvite.NewContextWithUser(r.Context(), user))
@@ -179,7 +182,9 @@ func sidFromRequest(r *http.Request) string {
 		return ""
 	}
 	sid := query.Get(SESSION_KEY)
-	log.Printf("[INFO] sidFromRequest: Found session_id from request: %s\n", sid)
+	if sid != "" {
+		log.Printf("[INFO] sidFromRequest: Found session_id from request: %s\n", sid)
+	}
 	return sid
 }
 
@@ -203,6 +208,5 @@ func ErrorStatusCode(code string) int {
 
 // LogError logs an error with the HTTP route information.
 func LogError(r *http.Request, err error) {
-	panic(err)
 	log.Printf("[http] error: %s %s: %s", r.Method, r.URL.Path, err)
 }

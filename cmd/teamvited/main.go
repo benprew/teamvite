@@ -24,6 +24,11 @@ var (
 
 const DefaultConfigPath = "config.json"
 
+// TODO: This should probably be teamvite (without the d) and then one of the
+// subcommands can be "daemon" or "server" or "serv" to run the server.
+// TODO: add a reset password command
+// TODO: add a send game reminders command
+
 // main is the entry point to our application binary. However, it has some poor
 // usability so we mainly use it to delegate out to our Main type.
 func main() {

@@ -11,51 +11,27 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Server) GetUser(req *http.Request) (usr teamvite.Player) {
-	user := teamvite.UserFromContext(req.Context())
-	if user == nil {
-		return teamvite.Player{}
-	}
-	return *user
-	// t, ok := req.URL.Query()[SESSION_KEY]
-	// var err error
-	// var sess Session
-	// if ok && t[0] != "" {
-	// 	sid := t[0]
-	// 	log.Printf("Finding player with token: %s\n", sid)
-	// 	sess, err = s.SessionService.Load(sid, RequestIP(req))
-	// 	checkErr(err, "getting player from token")
-	// }
-
-	// // if we couldn't get player from token, try getting from session
-	// if sess.ID == "" {
-	// 	sids, err := SidsFromCookie(req, SESSION_KEY)
-	// 	checkErr(err, "Failed to get sids from cookie")
-	// 	for _, sid := range sids {
-	// 		sess, err = LoadSession(s.DB.Queryer, sid, RequestIP(req))
-	// 		if err == nil {
-	// 			break
-	// 		}
-	// 	}
-	// 	checkErr(err, "loading session from cookie")
-	// }
-
-	// err = s.DB.Get(&usr, "select * from players where id = ?", sess.PlayerID)
-	// checkErr(err, fmt.Sprintf("get user from session: %d", sess.PlayerID))
-	// return
+func (s *Server) GetUser(req *http.Request) (usr *teamvite.Player) {
+	return teamvite.UserFromContext(req.Context())
 }
 
 func (s *Server) userLogout() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sids := SidsFromCookie(r, SESSION_KEY)
-		for _, sid := range sids {
-			if err := s.SessionService.Revoke(sid); err != nil {
-				s.Error(w, r, err)
-				return
-			}
-		}
-		http.Redirect(w, r, "/", http.StatusFound)
+		s.logout(w, r)
 	})
+}
+
+// Revoke user sessions, clear cookies and redirect to home page
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	sids := SidsFromCookie(r, SESSION_KEY)
+	for _, sid := range sids {
+		if err := s.SessionService.Revoke(sid); err != nil {
+			s.Error(w, r, err)
+			return
+		}
+	}
+	s.setSession(w, teamvite.Session{})
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (s *Server) userLogin() http.Handler {
@@ -74,7 +50,7 @@ func (s *Server) userLoginPost() http.Handler {
 		email := r.PostForm.Get("email")
 		password := []byte(r.PostForm.Get("password"))
 		players, n, err := s.PlayerService.FindPlayers(r.Context(), teamvite.PlayerFilter{Email: email})
-		if err != nil || n > 1 {
+		if err != nil || n != 1 {
 			msg := fmt.Sprintf("No user found for email: %s", email)
 			SetFlash(w, msg)
 			log.Println("[ERROR] ", msg, err)
@@ -110,7 +86,7 @@ func (s *Server) userLoginPost() http.Handler {
 			return
 		}
 
-		s.SetCookie(w, session)
+		s.setSession(w, session)
 		log.Printf("created session [player_id=%d]\n", userID)
 		http.Redirect(w, r, UrlFor(player, "show"), http.StatusFound)
 	})

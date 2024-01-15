@@ -96,8 +96,15 @@ func (s *Server) gameShow() http.Handler {
 				msg = "Sh*t or get off the pot!"
 
 			}
-			s.GameService.UpdateStatus(r.Context(), g, status[0:1])
+			if err = s.GameService.UpdateStatus(r.Context(), g, status[0:1]); err != nil {
+				s.Error(w, r, err)
+				return
+			}
+			// this redirects here because I want to accept GET requests from email links
+			// so instead of having a POST route and a GET route there's a singe GET route
+			// that strips the status param off after updating the game status.
 			SetFlash(w, msg)
+			http.Redirect(w, r, UrlFor(g, "show"), http.StatusFound)
 		}
 		_, n, err := s.GameService.FindGames(
 			r.Context(),

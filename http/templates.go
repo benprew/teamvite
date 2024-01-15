@@ -21,7 +21,7 @@ var fMap = template.FuncMap{
 
 type LayoutData struct {
 	Message string
-	User    teamvite.Player
+	User    *teamvite.Player
 	Page    interface{} // page specific parameters
 }
 
@@ -40,15 +40,15 @@ func (s *Server) RenderTemplate(w http.ResponseWriter, r *http.Request, template
 		return err
 	}
 
-	u := s.GetUser(r)
+	user := s.GetUser(r)
 	msg := LoadFlash(w, r)
 	if msg != "" {
-		log.Println("Showing message: ", msg)
+		log.Println("Showing flash message: ", msg)
 	}
 
 	params := LayoutData{
 		Message: msg,
-		User:    u,
+		User:    user,
 		Page:    templateParams,
 	}
 

@@ -11,6 +11,7 @@ func SetFlash(w http.ResponseWriter, s string) {
 		Value:    s,
 		Path:     "/",
 		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 }
 

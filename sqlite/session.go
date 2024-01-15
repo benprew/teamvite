@@ -121,12 +121,12 @@ func (ss *SessionService) Load(sid string, ip net.IP) (teamvite.Session, error) 
 	}
 	s.IP = net.ParseIP(ipStr)
 	if ip != nil && s.IP != nil && !ip.Equal(s.IP) {
-		msg := fmt.Sprintf("ip mismatch [req=%s db=%s]", ip, s.IP)
+		msg := fmt.Sprintf("ip mismatch, possible session hijacking [req=%s db=%s]", ip, s.IP)
 		log.Printf("[WARN] %s\n", msg)
 		return teamvite.Session{}, fmt.Errorf(msg)
 	}
 	log.Printf("loaded session [sid=%s, ip=%s, session=%v]", sid, s.IP, s)
-	return s, err
+	return s, nil
 }
 
 func (ss *SessionService) Revoke(sid string) error {

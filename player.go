@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
-	ql "github.com/benprew/teamvite/query_logger"
 )
 
 type Player struct {
@@ -70,11 +68,4 @@ type PlayerFilter struct {
 
 func ReminderID(teamID uint64) string {
 	return fmt.Sprintf("reminders_%d", teamID)
-}
-
-func NeedsGameReminder(DB *ql.QueryLogger, playerID int, gameID int) bool {
-	var pg PlayerGame
-	err := DB.Get(&pg, "select * from players_games where player_id = ? and game_id = ?", playerID, gameID)
-	checkErr(err, "game getOrCreateStatus")
-	return !pg.ReminderSent || pg.Status == ""
 }

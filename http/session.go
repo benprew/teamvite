@@ -145,7 +145,7 @@ func RequestIP(r *http.Request) net.IP {
 	return net.ParseIP(ip)
 }
 
-func (s *Server) SetCookie(w http.ResponseWriter, session teamvite.Session) {
+func (s *Server) setSession(w http.ResponseWriter, session teamvite.Session) {
 	cookie := &http.Cookie{
 		Name:     SESSION_KEY,
 		Value:    session.ID,

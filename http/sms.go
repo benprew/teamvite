@@ -81,24 +81,6 @@ func (s *Server) playerFromMessage(r *http.Request) (*teamvite.Player, string, e
 }
 
 func (s *Server) setStatusForGame(ctx context.Context, p teamvite.Player, g teamvite.Game, status string) string {
-	// teams, err := s.PlayerService.Teams(teamvite.NewContextWithPlayer(r.Context(), "", player))
-	// if err != nil {
-	// 	s.Error(w, r, err)
-	// 	return
-	// }
-
-	// teams := player.Teams(s.DB)
-
-	// var nextGame teamvite.Game
-
-	// for _, t := range teams {
-	// 	s.GameService.FindGames(r.Context(), teamvite.GameFilter{TeamID: t.ID, Time: Limit: 1}
-	// 	g, ok := t.NextGame(s.DB)
-	// 	if ok {
-	// 		nextGame = g
-	// 	}
-	// }
-
 	// Find most recently reminded game
 	// Note: this has limitations if a player is playing on multiple
 	// teams and we send multiple alerts to them.
@@ -107,12 +89,6 @@ func (s *Server) setStatusForGame(ctx context.Context, p teamvite.Player, g team
 	//
 	// Other SMS systems I've seen solve this by having a unique number
 	// assigned to the response
-	// nextGame, err := s.PlayerService.NextRemindedGame(r.Context(), player.ID)
-	// if err != nil {
-	// 	// TODO: what happens in the Twilio API if I return an error here?
-	// 	checkErr(err, "finding next game")
-	// 	response = "Internal Error"
-	// }
 
 	switch status {
 	case "Y":

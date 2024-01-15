@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -94,23 +95,18 @@ func (s *GameService) CreateGame(ctx context.Context, g *teamvite.Game) error {
 
 func (s *GameService) UpdateStatus(ctx context.Context, game *teamvite.Game, status string) error {
 	player := teamvite.UserFromContext(ctx)
+	if status != "" && player.ID == 0 {
+		return teamvite.Errorf(teamvite.EUNAUTHORIZED, "Can't set status without a player")
+	}
 	if status == "" || player.ID == 0 || game.ID == 0 {
-		if status != "" && player.ID == 0 {
-			return teamvite.Errorf(teamvite.EUNAUTHORIZED, "Can't set status without a player")
-		}
-		return nil
+		msg := fmt.Sprintf("[ERROR] Can't set status without player, status, and game. [status:%s,player:%v,game:%v]", status, player, game)
+		log.Println(msg)
+		return teamvite.Errorf(teamvite.EINVALID, msg)
 	}
 
 	fmt.Printf("setting game: %d and player: %d status to: %s\n", game.ID, player.ID, status)
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	_, err = tx.QueryContext(
-		ctx,
+	_, err := s.db.Exec(
 		`INSERT INTO players_games
 			(game_id, player_id, status)
 			VALUES (?, ?, ?)
@@ -139,9 +135,9 @@ func (s *GameService) ResponsesForGame(ctx context.Context, game *teamvite.Game)
 		`
 		SELECT
 		CASE
-			WHEN pg.status = 'Y' then 1 -- 'Yes'
-			WHEN pg.status = 'N' then 2 -- 'No'
-			WHEN pg.status = 'M' then 3 -- 'Maybe'
+			WHEN upper(pg.status) like 'Y%' then 1 -- 'Yes'
+			WHEN upper(pg.status) like 'N%' then 2 -- 'No'
+			WHEN upper(pg.status) like 'M%' then 3 -- 'Maybe'
 			ELSE 0                      -- 'NoReply'
 		END AS status,
 		name
@@ -153,7 +149,6 @@ func (s *GameService) ResponsesForGame(ctx context.Context, game *teamvite.Game)
 		ORDER BY status desc, name`,
 		game.ID,
 	)
-	todo: test this
 	if err != nil {
 		return nil, FormatError(err)
 	}

@@ -92,9 +92,7 @@ func (s *Server) teamList() http.Handler {
 		// TODO: Add filtering by division name (for creating games)
 		nameQuery := ""
 		q := r.URL.Query().Get("name")
-		//if q != "" {
 		nameQuery = "%" + q + "%"
-		//}
 
 		teams, _, err := s.TeamService.FindTeams(r.Context(), teamvite.TeamFilter{Name: &nameQuery})
 		if err != nil {
