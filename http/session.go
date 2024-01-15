@@ -127,7 +127,15 @@ func SidsFromCookie(r *http.Request, keyName string) (sid []string) {
 }
 
 func RequestIP(r *http.Request) net.IP {
+	if r.Header == nil {
+		log.Println("[ERROR] RequestIP: r.Header is nil")
+		return nil
+	}
 	forwarded := strings.Split(r.Header.Get("X-FORWARDED-FOR"), ",")
+	if forwarded == nil {
+		log.Println("[ERROR] RequestIP: X-FORWARDED-FOR is nil")
+		return nil
+	}
 	ip := forwarded[len(forwarded)-1]
 
 	if ip == "" {

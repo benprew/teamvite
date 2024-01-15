@@ -25,21 +25,6 @@ type teamListParams struct {
 	Q     string // query
 }
 
-type teamCtx struct {
-	Team     *teamvite.Team
-	Template string
-}
-
-func (s *Server) buildTeamContext(r *http.Request) (teamCtx, error) {
-	routeInfo, err := buildRouteInfo(r.URL.EscapedPath())
-	if err != nil {
-		return teamCtx{}, err
-	}
-
-	t, err := s.TeamService.FindTeamByID(r.Context(), routeInfo.ID)
-	return teamCtx{Team: t, Template: routeInfo.Template}, err
-}
-
 func (s *Server) teamShow() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -107,9 +92,9 @@ func (s *Server) teamList() http.Handler {
 		// TODO: Add filtering by division name (for creating games)
 		nameQuery := ""
 		q := r.URL.Query().Get("name")
-		if q != "" {
-			nameQuery = "%" + q + "%"
-		}
+		//if q != "" {
+		nameQuery = "%" + q + "%"
+		//}
 
 		teams, _, err := s.TeamService.FindTeams(r.Context(), teamvite.TeamFilter{Name: &nameQuery})
 		if err != nil {

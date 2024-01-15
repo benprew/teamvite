@@ -49,7 +49,7 @@ func (s *Server) playerFromMessage(r *http.Request) (*teamvite.Player, string, e
 	// https://www.twilio.com/docs/glossary/what-is-a-sid
 
 	err := r.ParseForm()
-	if err != nil {
+	if err != nil || r.PostForm == nil {
 		return nil, "", err
 	}
 

@@ -60,9 +60,7 @@ func (ps *PlayerService) Teams(ctx context.Context, teamIDs ...uint64) ([]teamvi
 
 	query := `
 		SELECT
-			t.id,
-			t.name,
-			pt.is_manager,
+			t.*,
 			pt.remind_email,
 			pt.remind_sms
 		FROM teams t
@@ -83,7 +81,7 @@ func (ps *PlayerService) Teams(ctx context.Context, teamIDs ...uint64) ([]teamvi
 
 	for rows.Next() {
 		var pt teamvite.PlayerTeam
-		err := rows.Scan(&pt.ID, &pt.Name, &pt.IsManager, &pt.RemindEmail, &pt.RemindSMS)
+		err := rows.Scan(&pt.Team.ID, &pt.Team.Name, &pt.Team.DivisionID, &pt.RemindEmail, &pt.RemindSMS)
 		if err != nil {
 			return nil, err
 		}
@@ -145,8 +143,8 @@ func (ps *PlayerService) UpdatePlayer(ctx context.Context) error {
 func (ps *PlayerService) UpdatePlayerTeam(ctx context.Context, playerTeam *teamvite.PlayerTeam) error {
 	playerID := teamvite.UserIDFromContext(ctx)
 	_, err := ps.db.Exec(
-		"update players_teams set is_manager = ?, remind_email = ?, remind_sms = ? where player_id = ? and team_id = ?",
-		playerTeam.IsManager, playerTeam.RemindEmail, playerTeam.RemindSMS, playerID, playerTeam.ID)
+		"update players_teams set remind_email = ?, remind_sms = ? where player_id = ? and team_id = ?",
+		playerTeam.RemindEmail, playerTeam.RemindSMS, playerID, playerTeam.Team.ID)
 	return err
 }
 

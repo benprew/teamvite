@@ -3,8 +3,16 @@ package teamvite
 import "context"
 
 type Division struct {
-	ID   int    `json:"id"`
+	ID   uint64 `json:"id"`
 	Name string `json:"name"`
+}
+
+func (d *Division) ItemID() uint64 {
+	return d.ID
+}
+
+func (p *Division) ItemType() string {
+	return "division"
 }
 
 type DivisionService interface {

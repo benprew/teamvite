@@ -16,6 +16,7 @@ var fMap = template.FuncMap{
 	"playerEmails": playerEmails,
 	"CalendarUrl":  CalendarUrl,
 	"Telify":       teamvite.Telify,
+	"ReminderID":   teamvite.ReminderID,
 }
 
 type LayoutData struct {
@@ -29,6 +30,7 @@ var views embed.FS
 
 // content is the template string
 func LoadContentTemplate(filename string) (*template.Template, error) {
+	log.Println("Loading template: ", filename)
 	return template.Must(templates.Clone()).ParseFS(views, filename)
 }
 
@@ -67,8 +69,8 @@ func defaultTemplates() *template.Template {
 	return template.Must(tmpl.ParseFS(views, "views/partials/*.tmpl"))
 }
 
-func CalendarUrl(t teamvite.Team) template.URL {
+func CalendarUrl(t teamvite.Item) template.URL {
 	return template.URL(fmt.Sprintf(
 		"webcal://%s/team/%d/calendar.ics",
-		teamvite.CONFIG.Servername, t.ID))
+		teamvite.CONFIG.Servername, t.ItemID()))
 }

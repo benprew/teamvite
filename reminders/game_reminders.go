@@ -155,13 +155,13 @@ func (s *ReminderService) SendGameReminders() error {
 
 func (s *ReminderService) emailReminder(p teamvite.Player, g teamvite.Game) error {
 	log.Printf("Sending reminder to: %s\n", p.Email)
-	session := sqlite.NewSessionService(s.db)
-	token, err := session.New(p.ID, nil, time.Hour*24*7)
+	sessionService := sqlite.NewSessionService(s.db)
+	session, err := sessionService.New(p.ID, nil, time.Hour*24*7)
 	if err != nil {
 		log.Println("creating token: ", err)
 		return err
 	}
-	reminderURL := fmt.Sprintf("https://%s%s?%s=%s", s.domain, thttp.UrlFor(&g, "show"), thttp.SESSION_KEY, token)
+	reminderURL := fmt.Sprintf("https://%s%s?%s=%s", s.domain, thttp.UrlFor(&g, "show"), thttp.SESSION_KEY, session.ID)
 	body, err := reminderEmailBody(reminderParams{Player: &p, Game: &g, ReminderURL: reminderURL})
 	if err != nil {
 		log.Println("building reminder email body: ", err)

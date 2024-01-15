@@ -1,5 +1,5 @@
 {{ define "content" }}
-  <form class="form-inline" method="get" action="/team">
+  <form class="form-inline" method="get" action="/division">
     <label for="q">Query</label>
     <input type="text" name="name" value="{{ .Q }}" >
     <input type="submit" value="Search">
@@ -7,13 +7,11 @@
   <table class="table table-striped">
     <thead>
       <th>Name</th>
-      <th>Division</th>
     </thead>
     <tbody>
-      {{ range .Teams }}
+      {{ range .Divisions }}
         <tr>
-          <td><a href="/team/{{.ID}}/show">{{ .Name }}</a></td>
-          <td>{{ .DivisionID }}</td>
+          <td>{{ .Name }}</td>
         </tr>
       {{ end }}
     </tbody>

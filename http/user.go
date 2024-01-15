@@ -77,7 +77,7 @@ func (s *Server) userLoginPost() http.Handler {
 		if err != nil || n > 1 {
 			msg := fmt.Sprintf("No user found for email: %s", email)
 			SetFlash(w, msg)
-			log.Println(msg)
+			log.Println("[ERROR] ", msg, err)
 			http.Redirect(w, r, "/user/login", http.StatusFound)
 			return
 		}
@@ -103,6 +103,7 @@ func (s *Server) userLoginPost() http.Handler {
 		log.Println("DEBUG: logging in as user:", player)
 		userID := player.ID
 		ip := RequestIP(r)
+		log.Println("sessionservice", s.SessionService)
 		session, err := s.SessionService.New(userID, ip, time.Hour*24*30)
 		if err != nil {
 			s.Error(w, r, err)

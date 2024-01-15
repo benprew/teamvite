@@ -18,21 +18,6 @@ type playerShowParams struct {
 	Games  []*teamvite.Game
 }
 
-type playerCtx struct {
-	Player   *teamvite.Player
-	Template string
-}
-
-func (s *Server) buildPlayerContext(r *http.Request) (playerCtx, error) {
-	routeInfo, err := buildRouteInfo(r.URL.EscapedPath())
-	if err != nil {
-		return playerCtx{}, err
-	}
-
-	p, err := s.PlayerService.FindPlayerByID(r.Context(), routeInfo.ID)
-	return playerCtx{Player: p, Template: routeInfo.Template}, err
-}
-
 func (s *Server) playerShow() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := teamvite.UserFromContext((r.Context()))
@@ -58,7 +43,7 @@ func (s *Server) playerShow() http.Handler {
 			Teams:  teams,
 			Games:  games,
 		}
-		log.Printf("playerShow: rending template: %s\n", template)
+		log.Printf("playerShow: rendering template: %s\n", template)
 		s.RenderTemplate(w, r, template, templateParams)
 	})
 }
@@ -69,8 +54,8 @@ func (s *Server) PlayerEdit() http.Handler {
 		player := teamvite.PlayerFromContext(r.Context())
 		template := teamvite.TemplateFromContext(r.Context())
 
-		if *player != *user {
-			http.Error(w, "Must be logged in as player", http.StatusUnauthorized)
+		if user == nil || player == nil || player.ID != user.ID {
+			s.Error(w, r, fmt.Errorf("must be logged in as player"))
 			return
 		}
 
@@ -94,8 +79,11 @@ func (s *Server) PlayerEdit() http.Handler {
 			Teams:  teams,
 			Games:  games,
 		}
-		log.Printf("playerEdit: rending template: %s\n", template)
-		s.RenderTemplate(w, r, template, templateParams)
+		log.Printf("playerEdit: rendering template: %s, params: %v\n", template, templateParams)
+		if err = s.RenderTemplate(w, r, template, templateParams); err != nil {
+			s.Error(w, r, err)
+			return
+		}
 	})
 }
 
@@ -159,7 +147,7 @@ func (s *Server) PlayerUpdate() http.Handler {
 			return
 		}
 		for _, pt := range teams {
-			reminders := r.Form[ReminderID(pt.ID)]
+			reminders := r.Form[ReminderID(pt.Team.ID)]
 			log.Println("reminders:", reminders)
 			pt.RemindEmail = false
 			pt.RemindSMS = false

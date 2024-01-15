@@ -84,6 +84,11 @@ func NewContextWithGame(ctx context.Context, template string, game *Game) contex
 	return ctx
 }
 
+func NewContextWithDivision(ctx context.Context, template string, division *Division) context.Context {
+	ctx = context.WithValue(ctx, templateKey, template)
+	return ctx
+}
+
 func TemplateFromContext(ctx context.Context) string {
 	template, _ := ctx.Value(templateKey).(string)
 	return template

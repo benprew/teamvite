@@ -1,9 +1,11 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	teamvite "github.com/benprew/teamvite"
 	"github.com/julienschmidt/httprouter"
@@ -11,6 +13,7 @@ import (
 
 const JSON = "application/json"
 const SESSION_KEY = "teamvite-session"
+const ShutdownTimeout = 1 * time.Second
 
 type Server struct {
 	server *http.Server
@@ -41,6 +44,13 @@ func NewServer() *Server {
 func (s *Server) Open() (err error) {
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", s.routes()))
 	return nil
+}
+
+// Close gracefully shuts down the server.
+func (s *Server) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	defer cancel()
+	return s.server.Shutdown(ctx)
 }
 
 // Run as server
@@ -120,6 +130,8 @@ func (s *Server) routeModelMiddleware(next http.Handler) http.Handler {
 				return
 			}
 			r = r.WithContext(teamvite.NewContextWithGame(r.Context(), routeInfo.Template, game))
+		} else if routeInfo.ModelType == "division" {
+			r = r.WithContext(teamvite.NewContextWithDivision(r.Context(), routeInfo.Template, &teamvite.Division{}))
 		}
 
 		next.ServeHTTP(w, r)
@@ -157,17 +169,18 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 }
 
 func sidFromRequest(r *http.Request) string {
-	sid := r.URL.Query().Get(SESSION_KEY)
-	log.Printf("Finding player with token: %s\n", sid)
+	if r == nil || r.URL == nil {
+		log.Println("[ERROR] sidFromRequest: nil request")
+		return ""
+	}
+	query := r.URL.Query()
+	if query == nil {
+		log.Println("[ERROR] sidFromRequest: nil query")
+		return ""
+	}
+	sid := query.Get(SESSION_KEY)
+	log.Printf("[INFO] sidFromRequest: Found session_id from request: %s\n", sid)
 	return sid
-	// sess, err = LoadSession(s.DB.Queryer, sid, RequestIP(req))
-	// checkErr(err, "getting player from token")
-
-	// sids, err := r.Cookie(SESSION_KEY)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return []string{sids.Value}, nil
 }
 
 // lookup of application error codes to HTTP status codes.
@@ -190,5 +203,6 @@ func ErrorStatusCode(code string) int {
 
 // LogError logs an error with the HTTP route information.
 func LogError(r *http.Request, err error) {
+	panic(err)
 	log.Printf("[http] error: %s %s: %s", r.Method, r.URL.Path, err)
 }

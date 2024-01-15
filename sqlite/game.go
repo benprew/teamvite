@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -122,33 +121,28 @@ func (s *GameService) UpdateStatus(ctx context.Context, game *teamvite.Game, sta
 }
 
 func (s *GameService) ResponsesForGame(ctx context.Context, game *teamvite.Game) (_ []*teamvite.GameResponse, err error) {
-	var r []*teamvite.GameResponse
-	respMap := []string{
-		"Yes",
-		"No",
-		"Maybe",
-		"No Reply",
-	}
+	//var r []*teamvite.GameResponse
+	type Response int
+	const (
+		NoReply Response = iota
+		Yes
+		No
+		Maybe
+	)
+	r := make([]*teamvite.GameResponse, 4)
+	r[NoReply] = &teamvite.GameResponse{Name: "No Reply"}
+	r[Yes] = &teamvite.GameResponse{Name: "Yes"}
+	r[No] = &teamvite.GameResponse{Name: "No"}
+	r[Maybe] = &teamvite.GameResponse{Name: "Maybe"}
 
-	for _, n := range respMap {
-		r = append(r, &teamvite.GameResponse{Name: n})
-	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	rows, err := tx.QueryContext(
-		ctx,
+	rows, err := s.db.Query(
 		`
 		SELECT
 		CASE
-			WHEN pg.status = 'N' then 'No'
-			WHEN pg.status = 'Y' then 'Yes'
-			WHEN pg.status = 'M' then 'Maybe'
-			ELSE 'No Reply'
+			WHEN pg.status = 'Y' then 1 -- 'Yes'
+			WHEN pg.status = 'N' then 2 -- 'No'
+			WHEN pg.status = 'M' then 3 -- 'Maybe'
+			ELSE 0                      -- 'NoReply'
 		END AS status,
 		name
 		FROM games g
@@ -159,16 +153,18 @@ func (s *GameService) ResponsesForGame(ctx context.Context, game *teamvite.Game)
 		ORDER BY status desc, name`,
 		game.ID,
 	)
+	todo: test this
 	if err != nil {
 		return nil, FormatError(err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var status, name string
-		rows.Scan(&status, &name)
-		idx := slices.Index(respMap, status)
-		r[idx].Players = append(r[idx].Players, name)
+		var statusInt int
+		var name string
+		rows.Scan(&statusInt, &name)
+		status := Response(statusInt)
+		r[status].Players = append(r[status].Players, name)
 	}
 	return r, nil
 }
@@ -187,8 +183,8 @@ func findGames(ctx context.Context, tx *sql.Tx, filter teamvite.GameFilter) (_ [
 
 	if v := filter.PlayerID; v != 0 {
 		where = append(where, `(
-			id IN (SELECT game_id FROM games
-				JOIN teams USING(team_id)
+			id IN (SELECT games.id FROM games
+				JOIN teams on games.team_id = teams.id
 				JOIN players_teams USING(team_id)
 				WHERE player_id = ?)
 		)`)

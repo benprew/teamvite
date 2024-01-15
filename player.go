@@ -18,9 +18,7 @@ type Player struct {
 
 // A team with additional player info from players_teams
 type PlayerTeam struct {
-	ID          uint64 // team id
-	Name        string
-	IsManager   bool
+	Team        Team
 	RemindSMS   bool
 	RemindEmail bool
 }
@@ -70,7 +68,7 @@ type PlayerFilter struct {
 	Limit  int `json:"limit"`
 }
 
-func ReminderID(teamID int) string {
+func ReminderID(teamID uint64) string {
 	return fmt.Sprintf("reminders_%d", teamID)
 }
 

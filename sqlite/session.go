@@ -115,7 +115,6 @@ func (ss *SessionService) Load(sid string, ip net.IP) (teamvite.Session, error) 
 		WHERE id = ? AND expires_on >= ?`,
 		sid,
 		time.Now().Unix())
-	log.Printf("loadSession [dbSession=%v]", s)
 	err := row.Scan(&s.ID, &s.PlayerID, &ipStr, &s.ExpiresOn)
 	if err != nil {
 		return teamvite.Session{}, err

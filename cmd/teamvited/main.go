@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -20,6 +21,8 @@ var (
 	version string
 	commit  string
 )
+
+const DefaultConfigPath = "config.json"
 
 // main is the entry point to our application binary. However, it has some poor
 // usability so we mainly use it to delegate out to our Main type.
@@ -86,41 +89,59 @@ type Main struct {
 // NewMain returns a new instance of Main.
 func NewMain() *Main {
 	return &Main{
-		Config:     teamvite.DefaultConfig(),
 		ConfigPath: teamvite.DefaultConfigPath,
-
 		HTTPServer: http.NewServer(),
 	}
 }
 
 func (m *Main) ParseFlags(ctx context.Context, args []string) error {
-	flag.StringVar(&m.ConfigPath, "config", m.ConfigPath, "path to config file")
-	flag.Parse()
+	fs := flag.NewFlagSet("teamvited", flag.ContinueOnError)
+	fs.StringVar(&m.ConfigPath, "config", DefaultConfigPath, "config path")
+	log.Println("ConfigPath: ", m.ConfigPath)
+	log.Println("args: ", args)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	config, err := teamvite.LoadConfig(m.ConfigPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("config file not found: %s", m.ConfigPath)
+	} else if err != nil {
+		return err
+	}
+	m.Config = config
+	teamvite.CONFIG = config
+
 	return nil
 }
 
 func (m *Main) Run(ctx context.Context) error {
 	db := sqlite.Open("file:teamvite.db?_foreign_keys=1")
-	defer db.Close()
 
 	m.HTTPServer.GameService = sqlite.NewGameService(db)
 	m.HTTPServer.TeamService = sqlite.NewTeamService(db)
 	m.HTTPServer.PlayerService = sqlite.NewPlayerService(db)
 	m.HTTPServer.DivisionService = sqlite.NewDivisionService(db)
+	m.HTTPServer.SeasonService = sqlite.NewSeasonService(db)
 
-	if len(os.Args) == 1 || os.Args[1] == "serv" {
-		fmt.Printf("Starting teamvite server on port 8080\n")
-		go func() { m.HTTPServer.Open() }()
-	} else if os.Args[1] == "resetpassword" {
-		// if err := ResetPassword(db, os.Args[2], os.Args[3]); err != nil {
-		// 	fmt.Printf("Error: %v", err)
-		// }
-	} else {
-		fmt.Printf("ERROR: unknown command %s\n", os.Args[1])
-	}
+	m.HTTPServer.SessionService = sqlite.NewSessionService(db)
+
+	// if len(os.Args) == 1 || os.Args[1] == "serv" {
+	fmt.Printf("Starting teamvite server on port 8080\n")
+	go func() { m.HTTPServer.Open() }()
+	// } else if os.Args[1] == "resetpassword" {
+	// 	// if err := ResetPassword(db, os.Args[2], os.Args[3]); err != nil {
+	// 	// 	fmt.Printf("Error: %v", err)
+	// 	// }
+	// } else {
+	// 	fmt.Printf("ERROR: unknown command %s\n", os.Args[1])
+	// }
 	return nil
 }
 
 func (m *Main) Close() error {
+	if m.DB != nil {
+		return m.DB.Close()
+	}
 	return nil
 }

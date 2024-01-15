@@ -78,6 +78,8 @@ func findDivisions(ctx context.Context, tx *sql.Tx, filter teamvite.DivisionFilt
 		args = append(args, filter.Name)
 	}
 
+	query += " order by name"
+
 	rows, err := tx.QueryContext(ctx, query+FormatLimitOffset(filter.Limit, filter.Offset), args...)
 	if err != nil {
 		return nil, 0, err

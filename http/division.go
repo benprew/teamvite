@@ -2,10 +2,16 @@ package http
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	teamvite "github.com/benprew/teamvite"
 )
+
+type divisionListParams struct {
+	Divisions []*teamvite.Division
+	Q         string // query
+}
 
 func (s *Server) DivisionList() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -15,7 +21,22 @@ func (s *Server) DivisionList() http.Handler {
 			s.Error(w, r, err)
 			return
 		}
-		w.Header().Set("Content-Type", JSON)
-		json.NewEncoder(w).Encode(divisions)
+
+		switch r.Header.Get("Content-type") {
+		case "application/json":
+			w.Header().Set("Content-Type", JSON)
+			json.NewEncoder(w).Encode(divisions)
+		default:
+			templateParams := divisionListParams{
+				Q:         nameQuery,
+				Divisions: divisions,
+			}
+			err = s.RenderTemplate(w, r, teamvite.TemplateFromContext(r.Context()), templateParams)
+			if err != nil {
+				log.Println(err)
+				s.Error(w, r, err)
+				return
+			}
+		}
 	})
 }

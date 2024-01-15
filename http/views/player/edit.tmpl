@@ -19,12 +19,12 @@
       <tbody>
         {{ range .Teams }}
           <tr>
-            <td>{{ .Name }}</td>
+            <td>{{ .Team.Name }}</td>
             <td>
-              <input type="checkbox" name="{{ ReminderId .Id }}" value="email" {{ if .RemindEmail }} checked {{ end }}>
+              <input type="checkbox" name="{{ ReminderID .Team.ID }}" value="email" {{ if .RemindEmail }} checked {{ end }}>
             </td>
             <td>
-              <input type="checkbox" name="{{ ReminderId .Id }}" value="sms" {{ if .RemindSMS }} checked {{ end }}>
+              <input type="checkbox" name="{{ ReminderID .Team.ID }}" value="sms" {{ if .RemindSMS }} checked {{ end }}>
             </td>
           </tr>
         {{ end }}

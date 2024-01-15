@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/benprew/teamvite"
 )
@@ -73,12 +74,18 @@ func (s *TeamService) CreateTeam(ctx context.Context, team *teamvite.Team) error
 
 func (s *TeamService) IsManagedBy(ctx context.Context, team *teamvite.Team) bool {
 	var isMgr bool
-	result, _ := s.db.Query(
+	result, err := s.db.Query(
 		"select is_manager from players_teams where player_id = ? and team_id = ?",
 		teamvite.UserIDFromContext(ctx),
 		team.ID,
 	)
+	if err != nil {
+		log.Println("unable to query is_manager", err)
+	}
 	result.Scan(&isMgr)
+	if err != nil {
+		log.Println("unable to query is_manager", err)
+	}
 
 	return isMgr
 }
@@ -126,6 +133,8 @@ func findTeams(ctx context.Context, tx *sql.Tx, filter teamvite.TeamFilter) (_ [
 		query += " and t.division_id = ?"
 		args = append(args, filter.DivisionID)
 	}
+
+	query += " order by name"
 
 	rows, err := tx.QueryContext(ctx, query+FormatLimitOffset(filter.Limit, filter.Offset), args...)
 	if err != nil {
