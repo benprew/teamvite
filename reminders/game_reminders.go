@@ -267,10 +267,16 @@ func (s *ReminderService) sendTwilioSMSMessage(p teamvite.Player, g teamvite.Gam
 	log.Println(postParams)
 	log.Println(u)
 	req, err := http.NewRequest("POST", u, strings.NewReader(postParams.Encode()))
+	if req == nil {
+		return err
+	}
 	checkErr(err, "creating twilio post")
 	req.SetBasicAuth(s.sms.Sid, s.sms.Token)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := client.Do(req)
+	if resp == nil {
+		return err
+	}
 	checkErr(err, "posting to SMS gateway")
 
 	defer resp.Body.Close()

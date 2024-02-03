@@ -119,8 +119,9 @@ func (ss *SessionService) Load(sid string, ip net.IP) (teamvite.Session, error) 
 	if err != nil {
 		return teamvite.Session{}, err
 	}
-	s.IP = net.ParseIP(ipStr)
+	ip = net.ParseIP(ipStr)
 	if ip != nil && s.IP != nil && !ip.Equal(s.IP) {
+		s.IP = ip
 		msg := fmt.Sprintf("ip mismatch, possible session hijacking [req=%s db=%s]", ip, s.IP)
 		log.Printf("[WARN] %s\n", msg)
 		return teamvite.Session{}, fmt.Errorf(msg)
