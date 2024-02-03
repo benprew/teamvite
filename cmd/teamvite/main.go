@@ -28,6 +28,13 @@ const DefaultConfigPath = "config.json"
 // subcommands can be "daemon" or "server" or "serv" to run the server.
 // TODO: add a reset password command
 // TODO: add a send game reminders command
+// Commands:
+// teamvite serv - start the server
+// teamvite resetpassword - reset a user's password
+// teamvite sendreminders - send game reminders
+//
+// global options
+// -config <path> - path to config file
 
 // main is the entry point to our application binary. However, it has some poor
 // usability so we mainly use it to delegate out to our Main type.
