@@ -132,7 +132,7 @@ func (s *Server) routeModelMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := &teamvite.Player{}
+		var user *teamvite.Player
 		var sids []string
 
 		// try loading user from request token
@@ -145,7 +145,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		for _, sid := range sids {
 			// exit once we have a user, which may be from the token above
-			if user.ID != 0 {
+			if user != nil {
 				break
 			}
 			log.Println("[INFO] Finding session with sid:", sid)

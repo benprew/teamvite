@@ -24,17 +24,16 @@ var (
 
 const DefaultConfigPath = "config.json"
 
-// TODO: This should probably be teamvite (without the d) and then one of the
-// subcommands can be "daemon" or "server" or "serv" to run the server.
-// TODO: add a reset password command
-// TODO: add a send game reminders command
+// TODO: Implement teamvite sendreminders command (see below)
 // Commands:
-// teamvite serv - start the server
-// teamvite resetpassword - reset a user's password
+// [X] teamvite serv - start the server
+// [X] teamvite resetpassword - reset a user's password
 // teamvite sendreminders - send game reminders
 //
 // global options
+// -[h]elp - print help and exit
 // -config <path> - path to config file
+// -version - print version and exit
 
 // main is the entry point to our application binary. However, it has some poor
 // usability so we mainly use it to delegate out to our Main type.
@@ -43,23 +42,111 @@ func main() {
 	teamvite.Version = strings.TrimPrefix(version, "")
 	teamvite.Commit = commit
 
+	// Instantiate a new type to represent our application.
+	// This type lets us shared setup code with our end-to-end tests.
+	m := NewMain()
+
+	servCmd := flag.NewFlagSet("serv", flag.ExitOnError)
+	servCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", servCmd.Name())
+		servCmd.PrintDefaults()
+		os.Exit(1)
+	}
+	resetPasswordCmd := flag.NewFlagSet("resetpassword", flag.ExitOnError)
+	resetPasswordCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", resetPasswordCmd.Name())
+		resetPasswordCmd.PrintDefaults()
+		os.Exit(1)
+	}
+	sendRemindersCmd := flag.NewFlagSet("sendreminders", flag.ExitOnError)
+	sendRemindersCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", sendRemindersCmd.Name())
+		sendRemindersCmd.PrintDefaults()
+		os.Exit(1)
+	}
+
+	// Define flags for each subcommand
+	// For example, if your "serv" command accepts a "port" flag, you could do:
+	servPort := servCmd.String("port", "8080", "port to serve on")
+
+	// If your "resetpassword" command accepts "user" and "newpassword" flags, you could do:
+	resetEmail := resetPasswordCmd.String("email", "", "email of user to reset")
+	resetNewPassword := resetPasswordCmd.String("newpassword", "", "new password")
+
+	// Check which subcommand is invoked
+	if len(os.Args) < 2 {
+		cmdUsage()
+		os.Exit(1)
+	}
+
+	switch os.Args[1] {
+	case "serv":
+		servCmd.Parse(os.Args[2:])
+		// Use the flags, for example:
+		fmt.Println("  port:", *servPort)
+		m.HTTPServer.Addr = ":" + *servPort
+		serv(m)
+	case "resetpassword":
+		resetPasswordCmd.Parse(os.Args[2:])
+		if *resetEmail == "" || *resetNewPassword == "" {
+			fmt.Println("Error: email and new password required")
+			resetPasswordCmd.Usage()
+			os.Exit(1)
+		}
+		cmdResetPassword(*resetEmail, *resetNewPassword)
+
+	case "sendreminders":
+		sendRemindersCmd.Parse(os.Args[2:])
+		fmt.Println("subcommand 'sendreminders'")
+	default:
+		cmdUsage()
+		os.Exit(1)
+	}
+}
+
+func cmdResetPassword(resetEmail, resetNewPassword string) {
+	// Load config and player service
+	db := sqlite.Open("file:teamvite.db?_foreign_keys=1")
+	ps := sqlite.NewPlayerService(db)
+
+	p, len, err := ps.FindPlayers(context.TODO(), teamvite.PlayerFilter{Email: resetEmail, Limit: 1})
+	if err != nil {
+		fmt.Println("Error finding player", err)
+		os.Exit(1)
+	}
+	if len == 0 {
+		fmt.Println("Error: player not found:", resetEmail)
+		os.Exit(1)
+	}
+	err = ps.ResetPassword(teamvite.NewContextWithPlayer(context.TODO(), "", p[0]), resetNewPassword)
+	if err != nil {
+		fmt.Println("Error resetting password: ", err)
+		os.Exit(1)
+	}
+	fmt.Println("Password reset for", resetEmail)
+
+}
+
+func cmdUsage() {
+	fmt.Print(`
+teamvite - control teamvite server
+
+commands:
+
+	serv 		  - start the server
+	resetpassword - reset a user's password
+	sendreminders - send game reminders to teams
+
+<command> -h shows help for that command
+`)
+}
+
+func serv(m *Main) {
 	// Setup signal handlers.
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() { <-c; cancel() }()
-
-	// Instantiate a new type to represent our application.
-	// This type lets us shared setup code with our end-to-end tests.
-	m := NewMain()
-
-	// Parse command line flags & load configuration.
-	if err := m.ParseFlags(ctx, os.Args[1:]); err == flag.ErrHelp {
-		os.Exit(1)
-	} else if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 
 	// Execute program.
 	if err := m.Run(ctx); err != nil {

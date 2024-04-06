@@ -28,8 +28,8 @@ func (s *Server) routes() http.Handler {
 	r.Handler("POST", "/sms", s.SMS())
 	r.Handler("POST", "/test_sms_receiver/Accounts/:id/Messages.json", s.TestSMSReceiver())
 
-	r.Handler("GET", "/user/login", s.routeWithMiddleware(s.userLogin()))
-	r.Handler("POST", "/user/login", s.routeWithMiddleware(s.userLoginPost()))
+	r.Handler("GET", "/user/login", s.userLogin())
+	r.Handler("POST", "/user/login", s.userLoginPost())
 	r.Handler("GET", "/user/logout", s.routeWithMiddleware(s.userLogout()))
 
 	r.Handler("GET", "/player/:id/show", s.routeWithMiddleware(s.playerShow()))
@@ -65,8 +65,10 @@ func (s *Server) routeWithMiddleware(handler http.Handler) http.Handler {
 func (s *Server) root() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := s.GetUser(r)
+
 		if u == nil {
 			http.Redirect(w, r, "/user/login", http.StatusFound)
+			return
 		}
 		http.Redirect(w, r, UrlFor(u, "show"), http.StatusFound)
 	})

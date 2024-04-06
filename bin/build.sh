@@ -13,4 +13,4 @@
 CGO_CFLAGS="-D_LARGEFILE64_SOURCE" CGO_ENABLED=1 CC=/usr/local/musl/bin/musl-gcc \
               go build \
               -ldflags="-extldflags=-static" \
-              ./cmd/teamvited
+              ./cmd/teamvite
