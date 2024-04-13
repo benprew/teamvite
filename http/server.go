@@ -9,7 +9,6 @@ import (
 	"time"
 
 	teamvite "github.com/benprew/teamvite"
-	"github.com/julienschmidt/httprouter"
 )
 
 const JSON = "application/json"
@@ -18,7 +17,6 @@ const ShutdownTimeout = 1 * time.Second
 
 type Server struct {
 	server *http.Server
-	router *httprouter.Router
 
 	GameService     teamvite.GameService
 	TeamService     teamvite.TeamService
@@ -35,7 +33,6 @@ type Server struct {
 
 func NewServer() *Server {
 	s := &Server{
-		router: httprouter.New(),
 		server: &http.Server{},
 	}
 
@@ -43,7 +40,7 @@ func NewServer() *Server {
 }
 
 func (s *Server) Open() (err error) {
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", s.routes()))
+	log.Fatal(http.ListenAndServe(s.Addr, s.routes()))
 	return nil
 }
 
@@ -130,7 +127,7 @@ func (s *Server) routeModelMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) authMiddleware(next http.Handler) http.Handler {
+func (s *Server) sessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var user *teamvite.Player
 		var sids []string

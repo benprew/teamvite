@@ -14,6 +14,7 @@ This is the first app I've written in Go, so there are things I've likely missed
 - simple deployment, development, and dependency processes
 - mobile and desktop friendly
 - low resource requirements
+- high performance - [performance is a feature](https://blog.nelhage.com/post/reflections-on-performance/)
 - reasonable security
 - trade features for simpler design
 - minimal dependencies
@@ -26,24 +27,23 @@ A faux fs is created to store all the text templates within the binary itself (s
 
 Deploys are done by copying the binary, moving the symlink and restarting the webserver. (see bin/deploy.sh)
 
-The only library dependencies are ones that I don't feel qualified to write (bcrypt and sqlite3 bindings) or are very similar to any implementation I would write (httprouter).
+The only library dependencies are ones that I don't feel qualified to write (bcrypt and sqlite3 bindings) or are very similar to any implementation I would write (uniuri).
 
-Teamvite can be run without a proxy webserver (ex. nginx) in front of it, and will deliver static files.
+Teamvite can be run without a proxy webserver (ex. nginx) in front of it and will deliver static files.
 
 ### Package Layout
 
 System module/package design follows ideas proposed in [Standard-Package-Layout](https://medium.com/@benbjohnson/standard-package-layout-7cdbc8391fc1#.ds38va3pp) and [Style-guidelines-for-Go-Packages](https://rakyll.org/style-packages/)
 
 Packages:
+- cmd/teamvite: teamvite binary. entry point into the app
 - http: anything related to sending or receiving http traffic. html templates
 - sqlite: anything that interacts with the sqlite database
 - teamvite: anything specific to the teamvite app, domain objects, and interfaces
 - reminders: send game reminders via email and SMS
 
-This follows recommendations from Ben Johnson on how to organize Go modules and
+This follows recommendations from Ben Johnson on organizing Go modules and
 Ted Kaminski on using modules to hide implementation details.
-
-Views use Go's default template library and db access is done through sqlx.
 
 ### Use of contex.Context
 
@@ -54,7 +54,7 @@ In the http package, the request context will contain the domain type based on t
 
 ## Interal Documentation
 
-Documentation for common actions. Mostly a reference for me to remind myself how to do them.
+Documentation for common actions. Mostly a reference for me.
 
 
 ### Add new games (for Portland Indoor season)

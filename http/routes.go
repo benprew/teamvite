@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	teamvite "github.com/benprew/teamvite"
-	"github.com/julienschmidt/httprouter"
 )
 
 func UrlFor(i teamvite.Item, action string) string {
@@ -18,48 +17,47 @@ func UrlFor(i teamvite.Item, action string) string {
 }
 
 func (s *Server) routes() http.Handler {
-	r := httprouter.New()
-	r.GET("/css/*filepath", serveStatic)
-	r.GET("/favicon.ico", serveStatic)
-	r.GET("/robots.txt", serveStatic)
-	r.Handler("GET", "/", s.routeWithMiddleware(s.root()))
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /favicon.ico", serveStatic)
+	mux.HandleFunc("GET /robots.txt", serveStatic)
+	mux.HandleFunc("GET /css/all.css", serveStatic)
+	mux.HandleFunc("GET /css/marx.min.css", serveStatic)
+	mux.Handle("GET /", s.routeWithMiddleware(s.root()))
 
-	r.Handler("GET", "/sms", s.SMS())
-	r.Handler("POST", "/sms", s.SMS())
-	r.Handler("POST", "/test_sms_receiver/Accounts/:id/Messages.json", s.TestSMSReceiver())
+	mux.Handle("GET /sms", s.SMS())
+	mux.Handle("POST /sms", s.SMS())
+	mux.Handle("POST /test_sms_receiver/Accounts/{id}/Messages.json", s.TestSMSReceiver())
 
-	r.Handler("GET", "/user/login", s.userLogin())
-	r.Handler("POST", "/user/login", s.userLoginPost())
-	r.Handler("GET", "/user/logout", s.routeWithMiddleware(s.userLogout()))
+	mux.Handle("GET /user/login", s.userLogin())
+	mux.Handle("POST /user/login", s.userLoginPost())
+	mux.Handle("GET /user/logout", s.routeWithMiddleware(s.userLogout()))
 
-	r.Handler("GET", "/player/:id/show", s.routeWithMiddleware(s.playerShow()))
-	r.Handler("GET", "/player/:id/edit", s.routeWithMiddleware(s.PlayerEdit()))
-	r.Handler("POST", "/player/:id/edit", s.routeWithMiddleware(s.PlayerUpdate()))
-	r.Handler("PATCH", "/player/:id/edit", s.routeWithMiddleware(s.PlayerUpdate()))
-	// r.Handler("GET", "/player", playerList)
+	mux.Handle("GET /player/{id}/show", s.routeWithMiddleware(s.playerShow()))
+	mux.Handle("GET /player/{id}/edit", s.routeWithMiddleware(s.PlayerEdit()))
+	mux.Handle("POST /player/{id}/edit", s.routeWithMiddleware(s.PlayerUpdate()))
+	mux.Handle("PATCH /player/{id}/edit", s.routeWithMiddleware(s.PlayerUpdate()))
 
-	r.Handler("GET", "/team", s.routeWithMiddleware(s.teamList()))
-	r.Handler("GET", "/team/:id/show", s.routeWithMiddleware(s.teamShow()))
-	r.Handler("GET", "/team/:id/edit", s.routeWithMiddleware(s.teamEdit()))
-	// r.Handler("PATCH", "/team/:id/edit", s.teamUpdate()))
-	r.Handler("POST", "/team/:id/add_player", s.routeWithMiddleware(s.teamAddPlayer()))
-	r.Handler("POST", "/team/:id/remove_player", s.routeWithMiddleware(s.teamRemovePlayer()))
-	r.Handler("GET", "/team/:id/calendar.ics", s.routeWithMiddleware(s.teamCalendar()))
-	r.Handler("POST", "/team", s.routeWithMiddleware(s.teamCreate()))
+	mux.Handle("GET /team", s.routeWithMiddleware(s.teamList()))
+	mux.Handle("GET /team/{id}/show", s.routeWithMiddleware(s.teamShow()))
+	mux.Handle("GET /team/{id}/edit", s.routeWithMiddleware(s.teamEdit()))
+	mux.Handle("POST /team/{id}/add_player", s.routeWithMiddleware(s.teamAddPlayer()))
+	mux.Handle("POST /team/{id}/remove_player", s.routeWithMiddleware(s.teamRemovePlayer()))
+	mux.Handle("GET /team/{id}/calendar.ics", s.routeWithMiddleware(s.teamCalendar()))
+	mux.Handle("POST /team", s.routeWithMiddleware(s.teamCreate()))
 
 	// Handles game responses.  Done as a GET so you can follow links in email
-	r.Handler("GET", "/game/:id/show", s.routeWithMiddleware(s.gameShow()))
-	r.Handler("POST", "/game", s.routeWithMiddleware(s.GameCreate()))
+	mux.Handle("GET /game/{id}/show", s.routeWithMiddleware(s.gameShow()))
+	mux.Handle("POST /game", s.routeWithMiddleware(s.GameCreate()))
 
 	// JSON APIs
-	r.Handler("GET", "/season", s.routeWithMiddleware(s.SeasonList()))
-	r.Handler("GET", "/division", s.routeWithMiddleware(s.DivisionList()))
+	mux.Handle("GET /season", s.routeWithMiddleware(s.SeasonList()))
+	mux.Handle("GET /division", s.routeWithMiddleware(s.DivisionList()))
 
-	return r
+	return mux
 }
 
 func (s *Server) routeWithMiddleware(handler http.Handler) http.Handler {
-	return s.authMiddleware(s.routeModelMiddleware(handler))
+	return s.sessionMiddleware(s.routeModelMiddleware(handler))
 }
 
 func (s *Server) root() http.Handler {
@@ -77,7 +75,7 @@ func (s *Server) root() http.Handler {
 //go:embed static
 var static embed.FS
 
-func serveStatic(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func serveStatic(w http.ResponseWriter, r *http.Request) {
 	staticSub, err := fs.Sub(static, "static")
 	if err != nil {
 		log.Printf("Failed to get subdir of static: %s\n", err)
