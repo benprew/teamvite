@@ -53,7 +53,7 @@ func (s *TeamService) FindTeams(ctx context.Context, filter teamvite.TeamFilter)
 }
 
 func (s *TeamService) CreateTeam(ctx context.Context, team *teamvite.Team) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, _ := s.db.BeginTx(ctx, nil)
 
 	result, err := tx.ExecContext(ctx, `
 			insert into teams (name, division_id) values (?, ?)
@@ -73,8 +73,9 @@ func (s *TeamService) CreateTeam(ctx context.Context, team *teamvite.Team) error
 }
 
 func (s *TeamService) IsManagedBy(ctx context.Context, team *teamvite.Team) bool {
+	log.Printf("checking if user: %d manages team: %d", teamvite.UserIDFromContext(ctx), team.ID)
 	var isMgr bool
-	result, err := s.db.Query(
+	rows, err := s.db.Query(
 		"select is_manager from players_teams where player_id = ? and team_id = ?",
 		teamvite.UserIDFromContext(ctx),
 		team.ID,
@@ -82,9 +83,14 @@ func (s *TeamService) IsManagedBy(ctx context.Context, team *teamvite.Team) bool
 	if err != nil {
 		log.Println("unable to query is_manager", err)
 	}
-	result.Scan(&isMgr)
-	if err != nil {
-		log.Println("unable to query is_manager", err)
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&isMgr)
+		if err != nil {
+			log.Println("unable to query is_manager", err)
+		}
+		log.Printf("is manager: %t", isMgr)
 	}
 
 	return isMgr

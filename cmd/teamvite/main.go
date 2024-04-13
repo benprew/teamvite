@@ -12,6 +12,7 @@ import (
 
 	"github.com/benprew/teamvite"
 	http "github.com/benprew/teamvite/http"
+	"github.com/benprew/teamvite/reminders"
 	"github.com/benprew/teamvite/sqlite"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -24,17 +25,6 @@ var (
 
 const DefaultConfigPath = "config.json"
 
-// TODO: Implement teamvite sendreminders command (see below)
-// Commands:
-// [X] teamvite serv - start the server
-// [X] teamvite resetpassword - reset a user's password
-// teamvite sendreminders - send game reminders
-//
-// global options
-// -[h]elp - print help and exit
-// -config <path> - path to config file
-// -version - print version and exit
-
 // main is the entry point to our application binary. However, it has some poor
 // usability so we mainly use it to delegate out to our Main type.
 func main() {
@@ -44,34 +34,41 @@ func main() {
 
 	// Instantiate a new type to represent our application.
 	// This type lets us shared setup code with our end-to-end tests.
-	m := NewMain()
+
+	var configPath string
 
 	servCmd := flag.NewFlagSet("serv", flag.ExitOnError)
 	servCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", servCmd.Name())
+		fmt.Fprintf(os.Stderr, "Usage of %s serv:\n", servCmd.Name())
 		servCmd.PrintDefaults()
 		os.Exit(1)
 	}
+	// Define flags for each subcommand
+	// For example, if your "serv" command accepts a "port" flag, you could do:
+	servPort := servCmd.String("port", "8080", "port to serve on")
+	servCmd.StringVar(&configPath, "config", teamvite.DefaultConfigPath, "config path")
+
 	resetPasswordCmd := flag.NewFlagSet("resetpassword", flag.ExitOnError)
 	resetPasswordCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", resetPasswordCmd.Name())
 		resetPasswordCmd.PrintDefaults()
 		os.Exit(1)
 	}
+	// If your "resetpassword" command accepts "user" and "newpassword" flags, you could do:
+	resetEmail := resetPasswordCmd.String("email", "", "email of user to reset")
+	resetNewPassword := resetPasswordCmd.String("newpassword", "", "new password")
+	resetPasswordCmd.StringVar(&configPath, "config", teamvite.DefaultConfigPath, "config path")
+
 	sendRemindersCmd := flag.NewFlagSet("sendreminders", flag.ExitOnError)
 	sendRemindersCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", sendRemindersCmd.Name())
 		sendRemindersCmd.PrintDefaults()
 		os.Exit(1)
 	}
+	sendRemindersCmd.StringVar(&configPath, "config", teamvite.DefaultConfigPath, "config path")
 
-	// Define flags for each subcommand
-	// For example, if your "serv" command accepts a "port" flag, you could do:
-	servPort := servCmd.String("port", "8080", "port to serve on")
-
-	// If your "resetpassword" command accepts "user" and "newpassword" flags, you could do:
-	resetEmail := resetPasswordCmd.String("email", "", "email of user to reset")
-	resetNewPassword := resetPasswordCmd.String("newpassword", "", "new password")
+	m := newMain(configPath)
+	fmt.Println("config: ", m)
 
 	// Check which subcommand is invoked
 	if len(os.Args) < 2 {
@@ -93,21 +90,20 @@ func main() {
 			resetPasswordCmd.Usage()
 			os.Exit(1)
 		}
-		cmdResetPassword(*resetEmail, *resetNewPassword)
+		cmdResetPassword(m, *resetEmail, *resetNewPassword)
 
 	case "sendreminders":
 		sendRemindersCmd.Parse(os.Args[2:])
-		fmt.Println("subcommand 'sendreminders'")
+		cmdSendReminders(m)
 	default:
 		cmdUsage()
 		os.Exit(1)
 	}
 }
 
-func cmdResetPassword(resetEmail, resetNewPassword string) {
+func cmdResetPassword(m *Main, resetEmail, resetNewPassword string) {
 	// Load config and player service
-	db := sqlite.Open("file:teamvite.db?_foreign_keys=1")
-	ps := sqlite.NewPlayerService(db)
+	ps := sqlite.NewPlayerService(m.DB)
 
 	p, len, err := ps.FindPlayers(context.TODO(), teamvite.PlayerFilter{Email: resetEmail, Limit: 1})
 	if err != nil {
@@ -127,17 +123,26 @@ func cmdResetPassword(resetEmail, resetNewPassword string) {
 
 }
 
+func cmdSendReminders(m *Main) {
+	s := reminders.NewReminderService(m.DB, m.Config.SMTP, m.Config.SMS, m.Config.Servername)
+	err := s.SendGameReminders()
+	if err != nil {
+		log.Fatal("Error sending reminders: ", err)
+	}
+}
+
 func cmdUsage() {
 	fmt.Print(`
 teamvite - control teamvite server
 
 commands:
+	serv           - start the server
+	resetpassword  - reset a user's password
+	sendreminders  - send game reminders to teams
 
-	serv 		  - start the server
-	resetpassword - reset a user's password
-	sendreminders - send game reminders to teams
-
-<command> -h shows help for that command
+global options:
+	-[h]elp        - print help and exit
+	-config <path> - path to config file
 `)
 }
 
@@ -171,8 +176,7 @@ type Main struct {
 	DB *sql.DB
 
 	// Configuration path and parsed config data.
-	Config     teamvite.Config
-	ConfigPath string
+	Config teamvite.Config
 
 	// SQLite database used by SQLite service implementations.
 	// DB *sqlite.DB
@@ -185,34 +189,39 @@ type Main struct {
 	// UserService wtf.UserService
 }
 
-// NewMain returns a new instance of Main.
-func NewMain() *Main {
+// newMain returns a new instance of Main.
+func newMain(configPath string) *Main {
+	config, err := teamvite.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
+	}
 	return &Main{
-		ConfigPath: teamvite.DefaultConfigPath,
+		Config:     config,
 		HTTPServer: http.NewServer(),
+		DB:         sqlite.Open("file:teamvite.db?_foreign_keys=1"),
 	}
 }
 
-func (m *Main) ParseFlags(ctx context.Context, args []string) error {
-	fs := flag.NewFlagSet("teamvited", flag.ContinueOnError)
-	fs.StringVar(&m.ConfigPath, "config", DefaultConfigPath, "config path")
-	log.Println("ConfigPath: ", m.ConfigPath)
-	log.Println("args: ", args)
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+// func (m *Main) ParseFlags(ctx context.Context, args []string) error {
+// 	fs := flag.NewFlagSet("teamvited", flag.ContinueOnError)
+// 	fs.StringVar(&m.ConfigPath, "config", DefaultConfigPath, "config path")
+// 	log.Println("ConfigPath: ", m.ConfigPath)
+// 	log.Println("args: ", args)
+// 	if err := fs.Parse(args); err != nil {
+// 		return err
+// 	}
 
-	config, err := teamvite.LoadConfig(m.ConfigPath)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("config file not found: %s", m.ConfigPath)
-	} else if err != nil {
-		return err
-	}
-	m.Config = config
-	teamvite.CONFIG = config
+// 	config, err := teamvite.LoadConfig(m.ConfigPath)
+// 	if os.IsNotExist(err) {
+// 		return fmt.Errorf("config file not found: %s", m.ConfigPath)
+// 	} else if err != nil {
+// 		return err
+// 	}
+// 	m.Config = config
+// 	teamvite.CONFIG = config
 
-	return nil
-}
+// 	return nil
+// }
 
 func (m *Main) Run(ctx context.Context) error {
 	db := sqlite.Open("file:teamvite.db?_foreign_keys=1")

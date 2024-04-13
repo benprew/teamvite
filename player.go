@@ -2,16 +2,15 @@ package teamvite
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 )
 
 type Player struct {
-	ID       uint64         `db:"id,primarykey,autoincrement"`
-	Name     string         `db:"name,size:64"`
-	Email    string         `db:"email,size:128"`
-	Password sql.NullString `db:"password,size:256,default:''"`
-	Phone    int            `db:"phone"`
+	ID       uint64 `db:"id,primarykey,autoincrement"`
+	Name     string `db:"name,size:64"`
+	Email    string `db:"email,size:128"`
+	Password string `db:"password,size:256,default:''"`
+	Phone    int    `db:"phone"`
 }
 
 // A team with additional player info from players_teams

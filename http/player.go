@@ -1,7 +1,6 @@
 package http
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -131,7 +130,7 @@ func (s *Server) PlayerUpdate() http.Handler {
 				return
 			}
 			log.Printf("Updating password to: %s\n", string(pHash[:]))
-			player.Password = sql.NullString{String: string(pHash[:]), Valid: true}
+			player.Password = string(pHash[:])
 		}
 
 		// Note: updates happen whether things have changed or not

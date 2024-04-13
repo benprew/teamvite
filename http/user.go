@@ -58,8 +58,8 @@ func (s *Server) userLoginPost() http.Handler {
 			return
 		}
 		player := players[0]
-		hash := []byte(player.Password.String)
-		if player.Password.String == "" || !player.Password.Valid {
+		hash := []byte(player.Password)
+		if player.Password == "" {
 			msg := "user must reset password"
 			SetFlash(w, msg)
 			log.Println(msg)

@@ -280,7 +280,7 @@ func (s *Server) teamCreate() http.Handler {
 	})
 }
 
-func playerEmails(players []teamvite.Player) string {
+func playerEmails(players []*teamvite.Player) string {
 	emails := []string{}
 	for _, p := range players {
 		emails = append(emails, p.Email)

@@ -154,7 +154,7 @@ func (ps *PlayerService) ResetPassword(ctx context.Context, password string) err
 	if err != nil {
 		return err
 	}
-	player.Password = sql.NullString{String: string(pHash[:]), Valid: true}
+	player.Password = string(pHash[:])
 
 	_, err = ps.db.Exec("update players set password = ? where id = ?", player.Password, player.ID)
 	return err

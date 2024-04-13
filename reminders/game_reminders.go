@@ -62,7 +62,7 @@ func (s *ReminderService) SendGameReminders() error {
 	FROM players p
 	JOIN players_games pg ON p.id = pg.player_id
 	JOIN games g ON pg.game_id = g.id
-	JOIN player_teams pt ON p.id = pt.player_id
+	JOIN players_teams pt ON p.id = pt.player_id
 	JOIN teams t ON pt.team_id = t.id
 	WHERE
 		g.time BETWEEN datetime('now') AND datetime('now', '+5 days')
@@ -148,8 +148,10 @@ func (s *ReminderService) SendGameReminders() error {
 			log.Println(err)
 			return err
 		}
+		fmt.Println(messages)
+	} else {
+		log.Println("No reminders to send")
 	}
-	fmt.Println(messages)
 	return nil
 }
 
