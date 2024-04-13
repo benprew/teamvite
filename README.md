@@ -1,10 +1,10 @@
 # Teamvite - recreational sports game management
 
-Teamvite is an web app I wrote to manage my recreational sports teams. It supports sending reminders (email or sms) and tracking responses (yes/no/maybe). Most views are mobile-optimized as most of my team (myself included) interact with the app through a phone.
+Teamvite is an web app I wrote to manage my recreational sports teams. It supports sending reminders (email or sms) and tracking responses. Most views are mobile-optimized for ease of use.
 
 Players can also download an ical calendar that has all the games and updates automatically.
 
-I chose to write Teamvite in Go because of its low resource requirements compared to python or ruby and because I wanted to learn Go. Note that this is actually v2 of this app, the first being picklespears (written in ruby).
+I chose to write Teamvite in Go because of its low resource requirements compared to python or ruby and because I wanted more experience with Go. Note that this is actually v2 of this app, the first being picklespears (written in ruby).
 
 This is the first app I've written in Go, so there are things I've likely missed. Feel free to open an issue with feedback on things I could do better. Thanks!
 
@@ -15,7 +15,7 @@ This is the first app I've written in Go, so there are things I've likely missed
 - mobile and desktop friendly
 - low resource requirements
 - reasonable security
-- willing to trade features for simpler design
+- trade features for simpler design
 - minimal dependencies
 
 ### Deployment Design
@@ -26,25 +26,22 @@ A faux fs is created to store all the text templates within the binary itself (s
 
 Deploys are done by copying the binary, moving the symlink and restarting the webserver. (see bin/deploy.sh)
 
-The only library dependencies are ones that I don't feel qualified to write (bcrypt, sqlx, and sqlite3 bindings) or are very similar to any implementation I would write (router).
+The only library dependencies are ones that I don't feel qualified to write (bcrypt and sqlite3 bindings) or are very similar to any implementation I would write (httprouter).
 
-Teamvite can be run without a proxy webserver (ex. nginx) in front of it, and will handle static file delivery.
+Teamvite can be run without a proxy webserver (ex. nginx) in front of it, and will deliver static files.
 
 ### Package Layout
 
-I'm a big proponent of carving out functionality into isolated modules. Go's solution to this is to use packages. This allows you to
-
 System module/package design follows ideas proposed in [Standard-Package-Layout](https://medium.com/@benbjohnson/standard-package-layout-7cdbc8391fc1#.ds38va3pp) and [Style-guidelines-for-Go-Packages](https://rakyll.org/style-packages/)
 
-Basically a "services" layer which functions as Model and Controller in the traditional MVC structure. Teamvite is small enough that it's easier to read like this.
+Packages:
+- http: anything related to sending or receiving http traffic. html templates
+- sqlite: anything that interacts with the sqlite database
+- teamvite: anything specific to the teamvite app, domain objects, and interfaces
+- reminders: send game reminders via email and SMS
 
-It also borrows some concepts from MVVM, notably the separation between the database models and the application models.
-
-In past apps I've worked on, the models often got in the way of the application logic. The way data is stored in the database (relations, 3NF, foreign keys, etc) are often not the way you want to display the data. So instead of having a model layer that only represents the database table and would require a more complex ORM layer to build SQL-like queries, I opted for having a models that don't correspond exactly to the database schema.
-
-As an example, we often want to show upcoming games to a user, sometimes for a single team and sometimes for all the teams they're on. In a traditional MVC structure, we would represent the teams, games, and players tables as models. To get a list of games and their status for those games requires joining player_teams to teams and then to games.
-
-But instead we can create an UpcomingGames object which provides the structure we want. This simplifies the views and separates the query logic.
+This follows recommendations from Ben Johnson on how to organize Go modules and
+Ted Kaminski on using modules to hide implementation details.
 
 Views use Go's default template library and db access is done through sqlx.
 
