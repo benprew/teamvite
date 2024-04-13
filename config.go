@@ -1,4 +1,4 @@
-package main
+package teamvite
 
 import (
 	"encoding/json"
@@ -6,9 +6,10 @@ import (
 	"os"
 )
 
-var CONFIG = readConfig()
+var CONFIG Config
+var DefaultConfigPath = "config.json"
 
-type config struct {
+type Config struct {
 	Servername string `json:"servername"` // teamvite.com, teamvitedev.com
 	SMTP       SMTPConfig
 	SMS        SMSConfig
@@ -28,15 +29,20 @@ type SMSConfig struct {
 	From  string `json:"from"` // From phone number
 }
 
-func readConfig() (c config) {
-	configFile := "config.json"
-	f, err := os.ReadFile(configFile)
+func LoadConfig(filename string) (c Config, err error) {
+	f, err := os.ReadFile(filename)
 	if err != nil {
-		log.Fatalln("[FATAL]: config file not found: ", configFile)
+		return
+		// log.Fatalln("[FATAL]: config file not found: ", configFile)
 	}
-	if err = json.Unmarshal(f, &c); err != nil {
-		log.Fatalln("[FATAL]: unable to parse config file:", err)
-	}
+	err = json.Unmarshal(f, &c)
 	return
+}
 
+func DefaultConfig() (c Config) {
+	c, err := LoadConfig(DefaultConfigPath)
+	if err != nil {
+		log.Fatalln("[FAIL]: Unable to load config ", DefaultConfigPath, err)
+	}
+	return c
 }

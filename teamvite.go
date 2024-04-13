@@ -1,70 +1,37 @@
-package main
+package teamvite
 
 import (
+	"context"
 	"crypto/md5"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const SessionKey = "teamvite-session"
+// Build version & commit SHA.
+var (
+	Version string
+	Commit  string
+)
 
-func main() {
-	db := getDB()
-	defer db.Close()
+// ReportError notifies an external service of errors. No-op by default.
+var ReportError = func(ctx context.Context, err error, args ...interface{}) {}
 
-	if len(os.Args) == 1 || os.Args[1] == "serv" {
-		fmt.Printf("Starting teamvite server on port 8080\n")
-		serv(db)
-	} else if os.Args[1] == "resetpassword" {
-		if err := ResetPassword(db, os.Args[2], os.Args[3]); err != nil {
-			fmt.Printf("Error: %v", err)
-		}
-	} else {
-		fmt.Printf("ERROR: unknown command %s\n", os.Args[1])
-	}
-}
-
-// Run as server
-func serv(db *QueryLogger) {
-	s := server{
-		DB:       db,
-		MsgStore: NewMessageStore(),
-	}
-
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", s.routes()))
-}
-
-func getDB() *QueryLogger {
-	db, err := sqlx.Connect("sqlite3", "file:teamvite.db?_foreign_keys=1")
-	if err != nil {
-		panic(err)
-	}
-
-	return &QueryLogger{db, log.Default()}
-}
+// ReportPanic notifies an external service of panics. No-op by default.
+var ReportPanic = func(err interface{}) {}
 
 type Item interface {
-	itemId() int
-	itemType() string
+	ItemID() uint64
+	ItemType() string
 }
 
-func urlFor(i Item, action string) string {
-	id := i.itemId()
-	name := i.itemType()
-	return fmt.Sprintf("/%s/%d/%s", name, id, action)
-}
-
-func gravatarKey(email string) string {
+func GravatarKey(email string) string {
 	sum := md5.Sum([]byte(email))
 	return hex.EncodeToString(sum[:])
 }
@@ -96,60 +63,4 @@ func UnTelify(str string) int {
 		return tel
 	}
 	return -1
-}
-
-type QueryLogger struct {
-	queryer *sqlx.DB
-	logger  *log.Logger
-}
-
-func (p *QueryLogger) Query(query string, args ...interface{}) (*sql.Rows, error) {
-	p.logger.Print("SQL===> ", query, args)
-	return p.queryer.Query(query, args...)
-}
-
-func (p *QueryLogger) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
-	p.logger.Print("SQL===> ", query, args)
-	return p.queryer.Queryx(query, args...)
-}
-
-func (p *QueryLogger) QueryRowx(query string, args ...interface{}) *sqlx.Row {
-	p.logger.Print("SQL===> ", query, args)
-	return p.queryer.QueryRowx(query, args...)
-}
-
-func (p *QueryLogger) Exec(query string, args ...interface{}) (sql.Result, error) {
-	p.logger.Print("SQL===> ", query, args)
-	return p.queryer.Exec(query, args...)
-}
-
-func (p *QueryLogger) NamedExec(query string, arg interface{}) (sql.Result, error) {
-	p.logger.Print("SQL===> ", query, arg)
-	return sqlx.NamedExec(p, query, arg)
-}
-
-func (p *QueryLogger) Select(dest interface{}, query string, args ...interface{}) error {
-	p.logger.Print("SQL===> ", query, args)
-	return sqlx.Select(p, dest, query, args...)
-}
-
-func (p *QueryLogger) Get(dest interface{}, query string, args ...interface{}) error {
-	p.logger.Print("SQL===> ", query, args)
-	return sqlx.Get(p, dest, query, args...)
-}
-
-func (p *QueryLogger) Close() error {
-	return p.queryer.Close()
-}
-
-func (p *QueryLogger) DriverName() string {
-	return p.queryer.DriverName()
-}
-
-func (p *QueryLogger) Rebind(s string) string {
-	return p.queryer.Rebind(s)
-}
-
-func (p *QueryLogger) BindNamed(s string, i interface{}) (string, []interface{}, error) {
-	return p.queryer.BindNamed(s, i)
 }

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
 from datetime import datetime, timedelta
-from multiprocessing import Pool
-from threading import Thread
+from threading import Thread, Lock
+
+from typing import List, Dict
 import re
 import sys
-import json
 import queue
-import urllib.request, urllib.parse
-import time
+import urllib.request
+import urllib.parse
 
 URL = "https://pdxindoorsoccer.com/wp-content/schedules"
 SEASONS = [
@@ -25,21 +25,24 @@ SUBDIVISIONS = ["", "A", "B", "C"]
 season = sys.argv[1]
 year = sys.argv[2]
 
-q = queue.Queue()
+q: queue.Queue = queue.Queue()
+games: list = []
+glock = Lock()
 
 
-def main():
+def main() -> None:
     for n in build_queue():
         q.put(n)
 
     print(q.qsize())
     workers = []
-    for i in range(3):
+    for i in range(5):
         workers.append(Thread(target=build_schedule))
         workers[-1].start()
     q.join()
     for n in workers:
         n.join()
+    write_schedule(games)
 
 
 def build_schedule():
@@ -49,12 +52,17 @@ def build_schedule():
             if not info:
                 return
             (schedule, div_id) = get_schedule(info)
-            if schedule:
-                games = parse_schedule(schedule, div_id)
-                write_schedule(games, div_id)
+            add_games(parse_schedule(schedule, div_id))
             q.task_done()
         except queue.Empty:
             return
+
+
+def add_games(g: List[Dict]):
+    global games
+    glock.acquire()
+    games += g
+    glock.release()
 
 
 # mp is faster, but I couldn't get the queue to work, so it has to write game to
@@ -97,8 +105,10 @@ def get_schedule(info):
 
 def parse_schedule(schedule, div_id):
     games = []
-    for l in _translit(schedule).split("\n"):
-        data = _parse_schedule_line(_clean_line(l))
+    if not schedule:
+        return []
+    for line in _translit(schedule).split("\n"):
+        data = _parse_schedule_line(_clean_line(line))
         if not data:
             continue
 
@@ -116,9 +126,9 @@ def parse_schedule(schedule, div_id):
     return games
 
 
-def write_schedule(games, div_id):
+def write_schedule(games, filename="pi_games.txt"):
     game_keys = ["season", "division", "team", "time", "description"]
-    with open(f"pi/{div_id}.TXT", "w") as fh:
+    with open(filename, "w") as fh:
         for g in games:
             fh.write("|".join([g[x] for x in game_keys]) + "\n")
 
@@ -174,7 +184,7 @@ def _parse_schedule_line(line):
     }
 
 
-def build_queue():
+def build_queue() -> list:
     return [[l, s, d] for l in LEAGUES for d in DIVISIONS for s in SUBDIVISIONS]
 
 

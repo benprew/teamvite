@@ -1,0 +1,19 @@
+{{ define "content" }}
+  <form class="form-inline" method="get" action="/division">
+    <label for="q">Query</label>
+    <input type="text" name="name" value="{{ .Q }}" >
+    <input type="submit" value="Search">
+  </form>
+  <table class="table table-striped">
+    <thead>
+      <th>Name</th>
+    </thead>
+    <tbody>
+      {{ range .Divisions }}
+        <tr>
+          <td>{{ .Name }}</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+{{ end }}

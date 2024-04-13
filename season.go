@@ -1,33 +1,19 @@
-package main
+package teamvite
 
-import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-)
+import "context"
 
 type Season struct {
-	Id   int    `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-func (s *server) SeasonList() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seasons := []Season{}
-		nameQuery := ""
-		nameWhere := ""
+// interface for the season service
+type SeasonService interface {
+	FindSeasons(ctx context.Context, filter SeasonFilter) ([]*Season, int, error)
+}
 
-		q, ok := r.URL.Query()["name"]
-		if ok && q[0] != "" {
-			nameQuery = q[0]
-			nameWhere = "where name like ?"
-		}
-
-		query := fmt.Sprintf("select * from seasons %s order by name", nameWhere)
-		err := s.DB.Select(&seasons, query, fmt.Sprintf("%%%s%%", nameQuery))
-		checkErr(err, "season list")
-
-		w.Header().Set("Content-Type", JSON)
-		json.NewEncoder(w).Encode(seasons)
-	})
+// filter for the season service
+type SeasonFilter struct {
+	ID   *uint64
+	Name string
 }

@@ -1,0 +1,33 @@
+{{ define "title" }}{{ .Team.Name }}{{ end }}
+{{ define "content" }}
+  <h3>{{ .Team.Name }}</h3>
+  <strong>DIVISION:</strong> {{ .Team.DivisionName}}
+  <hr>
+  <h5>
+    PLAYERS - {{ len .Players }}
+    <a href="mailto:{{playerEmails .Players}}"><button>Email the Team</button></a>
+  </h5>
+
+  <table>
+    <tbody>
+      {{ range .Players }}
+        <tr>
+          <td>{{ .Name }}</td>
+          <td><a href="mailto:{{ .Email }}">{{ .Email }}</a></td>
+          <td>
+            <form action="{{ urlFor $.Team "remove_player" }}" method="post">
+              <input type="submit" name="submit" value="Remove">
+              <input type="hidden" name="player_id" value="{{ .ID }}"></td>
+            </form>
+        </tr>
+      {{ end }}
+      <tr>
+        <td><input type="text" name="name" placeholder="Name" form="add-player"></td>
+        <td><input type="email" name="email" placeholder="Email" form="add-player"></td>
+        <td><input type="submit" name="submit" value="Add" form="add-player"></td>
+      </tr>
+    </tbody>
+  </table>
+  <form id="add-player" action="{{ urlFor .Team "add_player" }}" method="post"></form>
+  {{ template "upcoming_games.tmpl" . }}
+{{ end }}
