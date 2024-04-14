@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 REMOTE_FILE=teamvite-$(date +%F_%H-%M-%S)
 REMOTE_FILE=teamvite-$(md5sum teamvite |head -c8)
 # check if file exists
