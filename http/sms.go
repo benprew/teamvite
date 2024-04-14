@@ -32,7 +32,7 @@ func (s *Server) SMS() http.Handler {
 			return
 		}
 
-		response := s.setStatusForGame(ctx, *player, nextGame, status)
+		response := s.setStatusForGame(ctx, nextGame, status)
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte(response))
 	})
@@ -80,7 +80,7 @@ func (s *Server) playerFromMessage(r *http.Request) (*teamvite.Player, string, e
 	return player, msg[0:1], nil
 }
 
-func (s *Server) setStatusForGame(ctx context.Context, p teamvite.Player, g teamvite.Game, status string) string {
+func (s *Server) setStatusForGame(ctx context.Context, g teamvite.Game, status string) string {
 	// Find most recently reminded game
 	// Note: this has limitations if a player is playing on multiple
 	// teams and we send multiple alerts to them.

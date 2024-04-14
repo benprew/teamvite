@@ -72,7 +72,7 @@ ARGV.each do |filename|
   num_games = 0
   f.each do |line|
     line.chop!
-    (season, division, team, time, description) = line.split '|'
+    (season, _, team, time, description) = line.split '|'
 
     game_time = DateTime.parse time
 
