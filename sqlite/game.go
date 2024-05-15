@@ -95,7 +95,7 @@ func (s *GameService) CreateGame(ctx context.Context, g *teamvite.Game) error {
 
 func (s *GameService) UpdateStatus(ctx context.Context, game *teamvite.Game, status string) error {
 	player := teamvite.UserFromContext(ctx)
-	if status != "" && player.ID == 0 {
+	if status != "" && player == nil {
 		return teamvite.Errorf(teamvite.EUNAUTHORIZED, "Can't set status without a player")
 	}
 	if status == "" || player.ID == 0 || game.ID == 0 {
