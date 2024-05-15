@@ -33,9 +33,6 @@ func main() {
 	teamvite.Version = strings.TrimPrefix(version, "")
 	teamvite.Commit = commit
 
-	// Instantiate a new type to represent our application.
-	// This type lets us shared setup code with our end-to-end tests.
-
 	var configPath string
 
 	servCmd := flag.NewFlagSet("serv", flag.ExitOnError)
@@ -68,6 +65,8 @@ func main() {
 	}
 	sendRemindersCmd.StringVar(&configPath, "config", teamvite.DefaultConfigPath, "config path")
 
+	// Instantiate a new type to represent our application.
+	// This type lets us shared setup code with our end-to-end tests.
 	m := newMain(configPath)
 
 	// Check which subcommand is invoked

@@ -38,7 +38,7 @@ func (s *Server) playerShow() http.Handler {
 
 		templateParams := playerShowParams{
 			Player: player,
-			IsUser: *player == *user,
+			IsUser: (user != nil) && (player != nil) && *player == *user,
 			Teams:  teams,
 			Games:  games,
 		}
