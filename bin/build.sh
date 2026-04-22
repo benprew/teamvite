@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[[ -e /usr/local/musl/bin/musl-gcc ]] || { echo "ERROR: musl not installed"; exit 1; }
+# [[ -e /usr/local/musl/bin/musl-gcc ]] || { echo "ERROR: musl not installed"; exit 1; }
 
 # to install musl libc:
 # 1. download latest release wget https://musl.libc.org/releases/musl-latest.tar.gz

@@ -101,7 +101,16 @@ Documentation for common actions. Mostly a reference for me.
 
 ### Building and deploying
 
-    bin/build.sh && bin/deploy.sh
+Builds happen on the server (Fedora/musl). Deploy pulls the latest code,
+builds, deploys the binary and sops-encrypted config, then restarts the service:
+
+    bin/deploy.sh
+
+Secrets are stored in `secrets/config.json`, encrypted with [sops](https://github.com/getsops/sops) + [age](https://github.com/FiloSottile/age). To edit:
+
+    sops secrets/config.json
+
+Requires `SOPS_AGE_KEY_FILE` pointing at your age private key.
 
 ### Testing Game Reminders
 - Install [MailHog](https://github.com/mailhog/MailHog)
